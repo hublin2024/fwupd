@@ -83,7 +83,7 @@ fu_vli_usbhub_pd_device_setup(FuDevice *device, GError **error)
 			g_prefix_error(error, "failed to read PD header: ");
 			return FALSE;
 		}
-		g_byte_array_unref(st);
+		fu_struct_vli_pd_hdr_unref(st);
 		st = fu_struct_vli_pd_hdr_parse(buf, bufsz, 0x0, error);
 		if (st == NULL)
 			return FALSE;
@@ -156,7 +156,7 @@ static FuFirmware *
 fu_vli_usbhub_pd_device_prepare_firmware(FuDevice *device,
 					 GInputStream *stream,
 					 FuProgress *progress,
-					 FwupdInstallFlags flags,
+					 FuFirmwareParseFlags flags,
 					 GError **error)
 {
 	FuVliUsbhubPdDevice *self = FU_VLI_USBHUB_PD_DEVICE(device);
@@ -284,6 +284,7 @@ fu_vli_usbhub_pd_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 94, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "attach");

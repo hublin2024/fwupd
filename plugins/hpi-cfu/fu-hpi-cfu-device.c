@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Pena Christian <christian.a.pena@hp.com>
+ * Copyright 2024 HP Development Company, L.P.
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
@@ -1462,8 +1462,8 @@ static void
 fu_hpi_cfu_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
-	fu_progress_set_percentage(progress, 0);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 4, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 5, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 86, "attach");
@@ -1549,6 +1549,7 @@ fu_hpi_cfu_device_init(FuHpiCfuDevice *self)
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_REQUIRE_AC);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UNSIGNED_PAYLOAD);
 	fu_device_set_firmware_gtype(FU_DEVICE(self), FU_TYPE_ARCHIVE_FIRMWARE);
+	fu_device_set_install_duration(FU_DEVICE(self), 720); /* 12 min */
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ADD_INSTANCE_ID_REV);
 	fu_usb_device_add_interface(FU_USB_DEVICE(self), FU_HPI_CFU_INTERFACE);
 

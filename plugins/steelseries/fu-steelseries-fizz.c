@@ -354,7 +354,6 @@ static gboolean
 fu_steelseries_fizz_ensure_children(FuSteelseriesFizz *self, GError **error)
 {
 	guint8 status;
-	g_autofree gchar *version = NULL;
 
 	FuDevice *proxy = fu_device_get_proxy(FU_DEVICE(self));
 	if (proxy == NULL) {
@@ -640,7 +639,7 @@ fu_steelseries_fizz_read_firmware_fs(FuSteelseriesFizz *self,
 
 	fu_dump_raw(G_LOG_DOMAIN, "Firmware", buf, size);
 	blob = g_bytes_new_take(g_steal_pointer(&buf), size);
-	if (!fu_firmware_parse_bytes(firmware, blob, 0x0, FWUPD_INSTALL_FLAG_NO_SEARCH, error))
+	if (!fu_firmware_parse_bytes(firmware, blob, 0x0, FU_FIRMWARE_PARSE_FLAG_NO_SEARCH, error))
 		return NULL;
 
 	/* success */
@@ -701,6 +700,7 @@ static void
 fu_steelseries_fizz_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 1, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 80, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 1, "attach");
@@ -731,7 +731,6 @@ fu_steelseries_fizz_init(FuSteelseriesFizz *self)
 	fu_device_register_private_flag(FU_DEVICE(self),
 					FU_STEELSERIES_DEVICE_FLAG_DETACH_BOOTLOADER);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_REPLUG_MATCH_GUID);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_USE_PROXY_FOR_OPEN);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_REFCOUNTED_PROXY);
 	fu_device_add_protocol(FU_DEVICE(self), "com.steelseries.fizz");

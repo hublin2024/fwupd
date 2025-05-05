@@ -6,9 +6,7 @@
 
 #include "config.h"
 
-#ifdef HAVE_LIBCURL
 #include <curl/curl.h>
-#endif
 #include <jcat.h>
 
 #include "fwupd-codec.h"
@@ -80,11 +78,9 @@ G_DEFINE_TYPE_EXTENDED(FwupdRemote,
 
 #define GET_PRIVATE(o) (fwupd_remote_get_instance_private(o))
 
-#ifdef HAVE_LIBCURL
 typedef gchar curlptr;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(curlptr, curl_free)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURLU, curl_url_cleanup)
-#endif
 
 /**
  * fwupd_remote_flag_to_string:
@@ -157,6 +153,7 @@ fwupd_remote_add_json(FwupdCodec *codec, JsonBuilder *builder, FwupdCodecFlags f
 	fwupd_codec_json_append(builder, "ReportUri", priv->report_uri);
 	fwupd_codec_json_append(builder, "MetadataUri", priv->metadata_uri);
 	fwupd_codec_json_append(builder, "MetadataUriSig", priv->metadata_uri_sig);
+	fwupd_codec_json_append(builder, "FirmwareBaseUri", priv->firmware_base_uri);
 	fwupd_codec_json_append(builder, "Username", priv->username);
 	fwupd_codec_json_append(builder, "Password", priv->password);
 	fwupd_codec_json_append(builder, "Title", priv->title);
@@ -510,11 +507,13 @@ fwupd_remote_set_filename_source(FwupdRemote *self, const gchar *filename_source
 }
 
 static gchar *
-fwupd_remote_build_uri(FwupdRemote *self, const gchar *url_noauth, GError **error)
+fwupd_remote_build_uri(FwupdRemote *self,
+		       const gchar *base_uri,
+		       const gchar *url_noauth,
+		       GError **error)
 {
 	FwupdRemotePrivate *priv = GET_PRIVATE(self);
-#ifdef HAVE_LIBCURL
-	g_autofree gchar *url = NULL;
+	const gchar *path_suffix = NULL;
 	g_autoptr(curlptr) tmp_uri = NULL;
 	g_autoptr(CURLU) uri = curl_url();
 
@@ -527,36 +526,57 @@ fwupd_remote_build_uri(FwupdRemote *self, const gchar *url_noauth, GError **erro
 	/* the LVFS can't accept basic auth on an endpoint not expecting authentication */
 	if (!g_str_has_suffix(url_noauth, "/auth") &&
 	    (priv->username != NULL || priv->password != NULL)) {
-		url = g_strdup_printf("%s/auth", url_noauth);
-	} else {
-		url = g_strdup(url_noauth);
+		path_suffix = "auth";
 	}
 
-	/* use the base URI of the metadata to build the full path */
-	if (g_strstr_len(url, -1, "/") == NULL) {
+	/* create URI, substituting if required */
+	if (base_uri != NULL) {
 		g_autofree gchar *basename = NULL;
 		g_autofree gchar *path_new = NULL;
 		g_autoptr(curlptr) path = NULL;
+		g_autoptr(CURLU) uri_tmp = curl_url();
+
+		if (curl_url_set(uri_tmp, CURLUPART_URL, url_noauth, 0) != CURLUE_OK) {
+			g_set_error(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_FILE,
+				    "failed to parse url '%s'",
+				    url_noauth);
+			return NULL;
+		}
+		(void)curl_url_get(uri_tmp, CURLUPART_PATH, &path, 0);
+		basename = g_path_get_basename(path);
+		path_new = g_build_filename(priv->firmware_base_uri, basename, path_suffix, NULL);
+		(void)curl_url_set(uri, CURLUPART_URL, path_new, 0);
+
+	} else if (g_strstr_len(url_noauth, -1, "/") == NULL) {
+		g_autofree gchar *basename = NULL;
+		g_autofree gchar *path_new = NULL;
+		g_autoptr(curlptr) path = NULL;
+
+		/* use the base URI of the metadata to build the full path */
 		if (curl_url_set(uri, CURLUPART_URL, priv->metadata_uri, 0) != CURLUE_OK) {
 			g_set_error(error,
 				    FWUPD_ERROR,
 				    FWUPD_ERROR_INVALID_FILE,
-				    "Failed to parse url '%s'",
+				    "failed to parse url '%s'",
 				    priv->metadata_uri);
 			return NULL;
 		}
 		(void)curl_url_get(uri, CURLUPART_PATH, &path, 0);
 		basename = g_path_get_dirname(path);
-		path_new = g_build_filename(basename, url, NULL);
+		path_new = g_build_filename(basename, url_noauth, NULL);
 		(void)curl_url_set(uri, CURLUPART_URL, path_new, 0);
 
-		/* a normal URI */
 	} else {
+		g_autofree gchar *url = g_build_filename(url_noauth, path_suffix, NULL);
+
+		/* a normal URI */
 		if (curl_url_set(uri, CURLUPART_URL, url, 0) != CURLUE_OK) {
 			g_set_error(error,
 				    FWUPD_ERROR,
 				    FWUPD_ERROR_INVALID_FILE,
-				    "Failed to parse URI '%s'",
+				    "failed to parse URI '%s'",
 				    url);
 			return NULL;
 		}
@@ -573,13 +593,6 @@ fwupd_remote_build_uri(FwupdRemote *self, const gchar *url_noauth, GError **erro
 	}
 	(void)curl_url_get(uri, CURLUPART_URL, &tmp_uri, 0);
 	return g_strdup(tmp_uri);
-#else
-	if (g_strstr_len(url_noauth, -1, "/") == NULL) {
-		g_autofree gchar *basename = g_path_get_dirname(priv->metadata_uri);
-		return g_build_filename(basename, url_noauth, NULL);
-	}
-	return g_strdup(url_noauth);
-#endif
 }
 
 /**
@@ -611,6 +624,30 @@ fwupd_remote_set_metadata_uri(FwupdRemote *self, const gchar *metadata_uri)
 	/* generate the signature URI too */
 	g_free(priv->metadata_uri_sig);
 	priv->metadata_uri_sig = g_strconcat(metadata_uri, ".jcat", NULL);
+}
+
+/**
+ * fwupd_remote_set_firmware_base_uri:
+ * @self: a #FwupdRemote
+ * @firmware_base_uri: (nullable): base URI for firmware
+ *
+ * Sets the firmware base URI.
+ *
+ * NOTE: This has to be set after MetadataURI.
+ *
+ * Since: 2.0.2
+ **/
+void
+fwupd_remote_set_firmware_base_uri(FwupdRemote *self, const gchar *firmware_base_uri)
+{
+	FwupdRemotePrivate *priv = GET_PRIVATE(self);
+
+	/* not changed */
+	if (g_strcmp0(priv->firmware_base_uri, firmware_base_uri) == 0)
+		return;
+
+	g_free(priv->firmware_base_uri);
+	priv->firmware_base_uri = g_strdup(firmware_base_uri);
 }
 
 /**
@@ -1238,10 +1275,11 @@ fwupd_remote_get_checksum_metadata(FwupdRemote *self)
 gchar *
 fwupd_remote_build_firmware_uri(FwupdRemote *self, const gchar *url, GError **error)
 {
+	FwupdRemotePrivate *priv = GET_PRIVATE(self);
 	g_return_val_if_fail(FWUPD_IS_REMOTE(self), NULL);
 	g_return_val_if_fail(url != NULL, NULL);
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
-	return fwupd_remote_build_uri(self, url, error);
+	return fwupd_remote_build_uri(self, priv->firmware_base_uri, url, error);
 }
 
 /**
@@ -1261,7 +1299,7 @@ fwupd_remote_build_report_uri(FwupdRemote *self, GError **error)
 	FwupdRemotePrivate *priv = GET_PRIVATE(self);
 	g_return_val_if_fail(FWUPD_IS_REMOTE(self), NULL);
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
-	return fwupd_remote_build_uri(self, priv->report_uri, error);
+	return fwupd_remote_build_uri(self, NULL, priv->report_uri, error);
 }
 
 /**
@@ -1281,7 +1319,7 @@ fwupd_remote_build_metadata_sig_uri(FwupdRemote *self, GError **error)
 	FwupdRemotePrivate *priv = GET_PRIVATE(self);
 	g_return_val_if_fail(FWUPD_IS_REMOTE(self), NULL);
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
-	return fwupd_remote_build_uri(self, priv->metadata_uri_sig, error);
+	return fwupd_remote_build_uri(self, NULL, priv->metadata_uri_sig, error);
 }
 
 /**
@@ -1301,7 +1339,7 @@ fwupd_remote_build_metadata_uri(FwupdRemote *self, GError **error)
 	FwupdRemotePrivate *priv = GET_PRIVATE(self);
 	g_return_val_if_fail(FWUPD_IS_REMOTE(self), NULL);
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
-	return fwupd_remote_build_uri(self, priv->metadata_uri, error);
+	return fwupd_remote_build_uri(self, NULL, priv->metadata_uri, error);
 }
 
 /**
@@ -1469,6 +1507,24 @@ fwupd_remote_get_metadata_uri_sig(FwupdRemote *self)
 }
 
 /**
+ * fwupd_remote_get_firmware_base_uri:
+ * @self: a #FwupdRemote
+ *
+ * Gets the base URI for firmware.
+ *
+ * Returns: (transfer none): a URI, or %NULL for unset.
+ *
+ * Since: 2.0.2
+ **/
+const gchar *
+fwupd_remote_get_firmware_base_uri(FwupdRemote *self)
+{
+	FwupdRemotePrivate *priv = GET_PRIVATE(self);
+	g_return_val_if_fail(FWUPD_IS_REMOTE(self), NULL);
+	return priv->firmware_base_uri;
+}
+
+/**
  * fwupd_remote_needs_refresh:
  * @self: a #FwupdRemote
  *
@@ -1563,6 +1619,8 @@ fwupd_remote_from_variant_iter(FwupdCodec *codec, GVariantIter *iter)
 			priv->mtime = g_variant_get_uint64(value);
 		} else if (g_strcmp0(key, "RefreshInterval") == 0) {
 			priv->refresh_interval = g_variant_get_uint64(value);
+		} else if (g_strcmp0(key, "FirmwareBaseUri") == 0) {
+			fwupd_remote_set_firmware_base_uri(self, g_variant_get_string(value, NULL));
 		} else if (g_strcmp0(key, "AutomaticReports") == 0) {
 			/* we can probably stop doing proxying flags when we next branch */
 			if (g_variant_get_boolean(value))
@@ -1638,6 +1696,12 @@ fwupd_remote_add_variant(FwupdCodec *codec, GVariantBuilder *builder, FwupdCodec
 				      "{sv}",
 				      "ReportUri",
 				      g_variant_new_string(priv->report_uri));
+	}
+	if (priv->firmware_base_uri != NULL) {
+		g_variant_builder_add(builder,
+				      "{sv}",
+				      "FirmwareBaseUri",
+				      g_variant_new_string(priv->firmware_base_uri));
 	}
 	if (priv->priority != 0) {
 		g_variant_builder_add(builder,

@@ -113,12 +113,14 @@ fu_ifwi_cpd_firmware_parse_manifest(FuFirmware *firmware, GInputStream *stream, 
 							     offset + st_mex->len,
 							     extension_length - st_mex->len,
 							     error);
-		if (partial_stream == NULL)
+		if (partial_stream == NULL) {
+			g_prefix_error(error, "failed to cut CPD extension: ");
 			return FALSE;
+		}
 		if (!fu_firmware_parse_stream(img,
 					      partial_stream,
 					      0x0,
-					      FWUPD_INSTALL_FLAG_NONE,
+					      FU_FIRMWARE_PARSE_FLAG_NONE,
 					      error))
 			return FALSE;
 
@@ -145,7 +147,7 @@ fu_ifwi_cpd_firmware_validate(FuFirmware *firmware,
 static gboolean
 fu_ifwi_cpd_firmware_parse(FuFirmware *firmware,
 			   GInputStream *stream,
-			   FwupdInstallFlags flags,
+			   FuFirmwareParseFlags flags,
 			   GError **error)
 {
 	FuIfwiCpdFirmware *self = FU_IFWI_CPD_FIRMWARE(firmware);
@@ -203,8 +205,10 @@ fu_ifwi_cpd_firmware_parse(FuFirmware *firmware,
 						img_offset,
 						fu_struct_ifwi_cpd_entry_get_length(st_ent),
 						error);
-		if (partial_stream == NULL)
+		if (partial_stream == NULL) {
+			g_prefix_error(error, "failed to cut IFD image: ");
 			return FALSE;
+		}
 		if (!fu_firmware_parse_stream(img, partial_stream, 0x0, flags, error))
 			return FALSE;
 

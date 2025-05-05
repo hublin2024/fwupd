@@ -515,6 +515,22 @@ fu_coswid_firmware_parse_entity(cbor_item_t *item, gpointer user_data, GError **
 		}
 	}
 
+	/* sanity check */
+	if (entity->name == NULL) {
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_DATA,
+				    "entity does not have a name");
+		return FALSE;
+	}
+	if (entity->roles == 0) {
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_DATA,
+				    "entity has no roles");
+		return FALSE;
+	}
+
 	/* success */
 	g_ptr_array_add(priv->entities, g_steal_pointer(&entity));
 	return TRUE;
@@ -554,7 +570,7 @@ fu_coswid_firmware_free(void *ptr)
 static gboolean
 fu_coswid_firmware_parse(FuFirmware *firmware,
 			 GInputStream *stream,
-			 FwupdInstallFlags flags,
+			 FuFirmwareParseFlags flags,
 			 GError **error)
 {
 #ifdef HAVE_CBOR
@@ -907,12 +923,16 @@ fu_coswid_firmware_build_entity(FuCoswidFirmware *self, XbNode *n, GError **erro
 
 	/* these are required */
 	tmp = xb_node_query_text(n, "name", error);
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	entity->name = g_strdup(tmp);
 	tmp = xb_node_query_text(n, "regid", error);
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	entity->regid = g_strdup(tmp);
 
 	/* optional */
@@ -949,8 +969,10 @@ fu_coswid_firmware_build_link(FuCoswidFirmware *self, XbNode *n, GError **error)
 
 	/* required */
 	tmp = xb_node_query_text(n, "href", error);
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	link->href = g_strdup(tmp);
 
 	/* optional */
@@ -983,8 +1005,10 @@ fu_coswid_firmware_build_hash(FuCoswidFirmware *self,
 
 	/* required */
 	tmp = xb_node_query_text(n, "value", error);
-	if (tmp == NULL)
+	if (tmp == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	hash->value = fu_byte_array_from_string(tmp, error);
 	if (hash->value == NULL)
 		return FALSE;

@@ -1093,7 +1093,7 @@ static FuFirmware *
 fu_ccgx_hpi_device_prepare_firmware(FuDevice *device,
 				    GInputStream *stream,
 				    FuProgress *progress,
-				    FwupdInstallFlags flags,
+				    FuFirmwareParseFlags flags,
 				    GError **error)
 {
 	FuCcgxHpiDevice *self = FU_CCGX_HPI_DEVICE(device);
@@ -1117,7 +1117,7 @@ fu_ccgx_hpi_device_prepare_firmware(FuDevice *device,
 			    fw_silicon_id);
 		return NULL;
 	}
-	if ((flags & FWUPD_INSTALL_FLAG_IGNORE_VID_PID) == 0) {
+	if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_VID_PID) == 0) {
 		fw_app_type = fu_ccgx_firmware_get_app_type(FU_CCGX_FIRMWARE(firmware));
 		if (fw_app_type != self->fw_app_type) {
 			g_set_error(error,
@@ -1564,6 +1564,7 @@ fu_ccgx_hpi_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 94, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "attach");

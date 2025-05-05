@@ -72,7 +72,7 @@ fu_efi_file_hdr_checksum8(GBytes *blob)
 static gboolean
 fu_efi_file_parse(FuFirmware *firmware,
 		  GInputStream *stream,
-		  FwupdInstallFlags flags,
+		  FuFirmwareParseFlags flags,
 		  GError **error)
 {
 	FuEfiFile *self = FU_EFI_FILE(firmware);
@@ -102,7 +102,7 @@ fu_efi_file_parse(FuFirmware *firmware,
 				    (guint)fu_struct_efi_file_get_size(st));
 			return FALSE;
 		}
-		g_byte_array_unref(st);
+		fu_struct_efi_file_unref(st);
 		st = fu_struct_efi_file2_parse_stream(stream, 0x0, error);
 		if (st == NULL)
 			return FALSE;
@@ -120,7 +120,7 @@ fu_efi_file_parse(FuFirmware *firmware,
 	}
 
 	/* verify header checksum */
-	if ((flags & FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM) == 0) {
+	if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_CHECKSUM) == 0) {
 		guint8 hdr_checksum_verify;
 		g_autoptr(GBytes) hdr_blob = NULL;
 
@@ -141,12 +141,14 @@ fu_efi_file_parse(FuFirmware *firmware,
 
 	/* add simple blob */
 	partial_stream = fu_partial_input_stream_new(stream, st->len, size - st->len, error);
-	if (partial_stream == NULL)
+	if (partial_stream == NULL) {
+		g_prefix_error(error, "failed to cut EFI blob: ");
 		return FALSE;
+	}
 
 	/* verify data checksum */
 	if ((priv->attrib & FU_EFI_FILE_ATTRIB_CHECKSUM) > 0 &&
-	    (flags & FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM) == 0) {
+	    (flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_CHECKSUM) == 0) {
 		guint8 data_checksum_verify = 0;
 		if (!fu_input_stream_compute_sum8(partial_stream, &data_checksum_verify, error))
 			return FALSE;

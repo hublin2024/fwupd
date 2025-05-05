@@ -129,6 +129,14 @@ fu_version_from_uint32(guint32 val, FwupdVersionFormat kind)
 				       (val >> 16) & 0xff,
 				       val & 0xffff);
 	}
+	if (kind == FWUPD_VERSION_FORMAT_INTEL_CSME19) {
+		/* aaa+19.bbbbb.cccccccc.dddddddddddddddd */
+		return g_strdup_printf("%u.%u.%u.%u",
+				       ((val >> 29) & 0x07) + 19,
+				       (val >> 24) & 0x1f,
+				       (val >> 16) & 0xff,
+				       val & 0xffff);
+	}
 	if (kind == FWUPD_VERSION_FORMAT_SURFACE_LEGACY) {
 		/* 10b.12b.10b */
 		return g_strdup_printf("%u.%u.%u",
@@ -408,7 +416,7 @@ fu_version_format_number_sections(FwupdVersionFormat fmt)
 	    fmt == FWUPD_VERSION_FORMAT_DELL_BIOS_MSB)
 		return 3;
 	if (fmt == FWUPD_VERSION_FORMAT_QUAD || fmt == FWUPD_VERSION_FORMAT_INTEL_ME ||
-	    fmt == FWUPD_VERSION_FORMAT_INTEL_ME2)
+	    fmt == FWUPD_VERSION_FORMAT_INTEL_ME2 || fmt == FWUPD_VERSION_FORMAT_INTEL_CSME19)
 		return 4;
 	return 0;
 }
@@ -610,7 +618,8 @@ fu_version_guess_format(const gchar *version)
 static FwupdVersionFormat
 fu_version_format_convert_base(FwupdVersionFormat fmt)
 {
-	if (fmt == FWUPD_VERSION_FORMAT_INTEL_ME || fmt == FWUPD_VERSION_FORMAT_INTEL_ME2)
+	if (fmt == FWUPD_VERSION_FORMAT_INTEL_ME || fmt == FWUPD_VERSION_FORMAT_INTEL_ME2 ||
+	    fmt == FWUPD_VERSION_FORMAT_INTEL_CSME19)
 		return FWUPD_VERSION_FORMAT_QUAD;
 	if (fmt == FWUPD_VERSION_FORMAT_DELL_BIOS || fmt == FWUPD_VERSION_FORMAT_DELL_BIOS_MSB)
 		return FWUPD_VERSION_FORMAT_TRIPLET;
@@ -636,7 +645,6 @@ fu_version_format_convert_base(FwupdVersionFormat fmt)
 gboolean
 fu_version_verify_format(const gchar *version, FwupdVersionFormat fmt, GError **error)
 {
-	FwupdVersionFormat fmt_base = fu_version_format_convert_base(fmt);
 	FwupdVersionFormat fmt_guess;
 
 	g_return_val_if_fail(version != NULL, FALSE);
@@ -652,7 +660,10 @@ fu_version_verify_format(const gchar *version, FwupdVersionFormat fmt, GError **
 
 	/* check the base format */
 	fmt_guess = fu_version_guess_format(version);
-	if (fmt_guess != fmt_base) {
+	if (fmt == FWUPD_VERSION_FORMAT_BCD &&
+	    (fmt_guess == FWUPD_VERSION_FORMAT_PAIR || fmt_guess == FWUPD_VERSION_FORMAT_QUAD))
+		return TRUE;
+	if (fmt_guess != fu_version_format_convert_base(fmt)) {
 		g_set_error(error,
 			    FWUPD_ERROR,
 			    FWUPD_ERROR_INVALID_DATA,

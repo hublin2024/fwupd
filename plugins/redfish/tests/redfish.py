@@ -13,18 +13,29 @@ app = Flask(__name__)
 
 HARDCODED_SMC_USERNAME = "smc_username"
 HARDCODED_UNL_USERNAME = "unlicensed_username"
-HARDCODED_USERNAMES = {"username2", HARDCODED_SMC_USERNAME, HARDCODED_UNL_USERNAME}
+HARDCODED_HPE_USERNAME = "hpe_username"
+HARDCODED_DELL_USERNAME = "dell_username"
+HARDCODED_USERNAMES = {
+    "username2",
+    HARDCODED_SMC_USERNAME,
+    HARDCODED_UNL_USERNAME,
+    HARDCODED_HPE_USERNAME,
+    HARDCODED_DELL_USERNAME,
+}
 HARDCODED_PASSWORD = "password2"
 
 app._percentage545: int = 0
 app._percentage546: int = 0
+app._hpeupdatestate: str = "Idle"
 
 
 def _failure(msg: str, status=400):
     res = {
         "error": {"message": msg},
     }
-    return Response(response=json.dumps(res), status=401, mimetype="application/json")
+    return Response(
+        response=json.dumps(res), status=status, mimetype="application/json"
+    )
 
 
 @app.route("/redfish/v1/")
@@ -32,6 +43,7 @@ def index():
     # reset counter
     app._percentage545 = 0
     app._percentage546 = 0
+    app._hpeupdatestate = "Idle"
 
     # check password from the config file
     try:
@@ -50,6 +62,50 @@ def index():
         "UUID": "92384634-2938-2342-8820-489239905423",
         "UpdateService": {"@odata.id": "/redfish/v1/UpdateService"},
     }
+
+    if request.authorization["username"] == HARDCODED_HPE_USERNAME:
+        res["Vendor"] = "HPE"
+
+    if request.authorization["username"] == HARDCODED_DELL_USERNAME:
+        res["Vendor"] = "Dell"
+
+    if request.authorization["username"] in (
+        HARDCODED_SMC_USERNAME,
+        HARDCODED_UNL_USERNAME,
+    ):
+        res["Vendor"] = "SMCI"
+
+    return Response(json.dumps(res), status=200, mimetype="application/json")
+
+
+@app.route("/redfish/v1/Systems")
+def systems():
+    res = {
+        "@odata.id": "/redfish/v1/Systems",
+        "@odata.type": "#ComputerSystemCollection.ComputerSystemCollection",
+        "Members": [
+            {"@odata.id": "/redfish/v1/Systems/System.Embedded.1"},
+        ],
+        "Members@odata.count": 1,
+    }
+    return Response(json.dumps(res), status=200, mimetype="application/json")
+
+
+@app.route("/redfish/v1/Systems/System.Embedded.1")
+def system():
+    res = {
+        "@odata.id": "/redfish/v1/Systems/System.Embedded.1",
+        "@odata.type": "#ComputerSystem.v1_20_1.ComputerSystem",
+    }
+
+    if request.authorization["username"] == HARDCODED_DELL_USERNAME:
+        res["Oem"] = {
+            "Dell": {
+                "DellSystem": {
+                    "SystemID": 3168,
+                }
+            }
+        }
     return Response(json.dumps(res), status=200, mimetype="application/json")
 
 
@@ -86,6 +142,9 @@ def update_service():
                 "target": "/redfish/v1/UpdateService/Actions/UpdateService.StartUpdate"
             }
         }
+    elif request.authorization["username"] == HARDCODED_HPE_USERNAME:
+        res["Oem"] = {"Hpe": {"State": app._hpeupdatestate}}
+        res["HttpPushUri"] = "/FWUpdate-hpe"
     else:
         res["MultipartHttpPushUri"] = "/FWUpdate"
 
@@ -116,6 +175,15 @@ def firmware_inventory_bmc():
         "Id": "BMC",
         "LowestSupportedVersion": "11A-0.12",
         "Name": "Lenovo BMC Firmware",
+        "Oem": {
+            "Hpe": {
+                "DeviceClass": "aa148d2e-6e09-453e-bc6f-63baa5f5ccc4",
+                "Targets": [
+                    "00000000-0000-0000-0000-000000000229",
+                    "00000000-0000-0000-0000-000001413436",
+                ],
+            }
+        },
         "RelatedItem": [{"@odata.id": "/redfish/v1/Managers/BMC"}],
         "SoftwareId": "UEFI-AFE1-6",
         "UefiDevicePaths": ["BMC(0x1,0x0ABCDEF)"],
@@ -130,6 +198,9 @@ def firmware_inventory_bmc():
         res["Manufacturer"] = "SMCI"
     else:
         res["Manufacturer"] = "Lenovo"
+
+    if request.authorization["username"] == HARDCODED_DELL_USERNAME:
+        res["Oem"] = {"Dell": {"DellSoftwareInventory": {"Status": "Installed"}}}
     return Response(json.dumps(res), status=200, mimetype="application/json")
 
 
@@ -203,6 +274,31 @@ def firmware_inventory_bios():
     else:
         res["Manufacturer"] = "Contoso"
     return Response(json.dumps(res), status=200, mimetype="application/json")
+
+
+@app.route("/redfish/v1/SessionService/Sessions", methods=["POST"])
+def session_service_sessions():
+    username = request.authorization["username"]
+
+    if username not in HARDCODED_USERNAMES:
+        return _failure("unauthorised")
+    if request.authorization["password"] != HARDCODED_PASSWORD:
+        return _failure("invalid password")
+
+    res = {
+        "@odata.id": "/redfish/v1/SessionService/Sessions/1",
+        "@odata.type": "#Session.v1_0_0.Session",
+        "@odata.etag": "653b835e9ee4af9ea7ea",
+        "Id": "1",
+        "Name": "Session 1",
+        "UserName": username,
+    }
+    return Response(
+        json.dumps(res),
+        status=200,
+        mimetype="application/json",
+        headers={"X-Auth-Token": "1234eabcdeabcdeabcdeabcdeabc1234"},
+    )
 
 
 @app.route("/redfish/v1/TaskService/999")
@@ -313,39 +409,19 @@ def fwupdate_unlicensed():
             "@Message.ExtendedInfo": [
                 {
                     "MessageId": "SMC.1.0.OemLicenseNotPassed",
-                    "Severity": "Warning",
-                    "Resolution": "Please check if there was the next step with respective API to execute.",
-                    "Message": "The BIOS firmware update was already in update mode.",
+                    "Message": "Feature not available.",
                     "MessageArgs": ["BIOS"],
-                    "RelatedProperties": ["EnterUpdateMode_StatusCheck"],
                 }
             ],
         }
     }
     return Response(json.dumps(res), status=405, mimetype="application/json")
-    data = json.loads(request.form["UpdateParameters"])
-    if data["@Redfish.OperationApplyTime"] != "Immediate":
-        return _failure("apply invalid")
-    if data["Targets"][0] != "/redfish/v1/UpdateService/FirmwareInventory/BMC":
-        return _failure("id invalid")
-    fileitem = request.files["UpdateFile"]
-    if not fileitem.filename.endswith(".bin"):
-        return _failure("filename invalid")
-    if fileitem.read().decode() != "hello":
-        return _failure("data invalid")
-    res = {
-        "Version": "P79 v1.45",
-        "@odata.id": "/redfish/v1/TaskService/Tasks/545",
-        "@odata.etag": "653b835e9ee4af9ea7ea",
-        "TaskMonitor": "/redfish/v1/TaskService/999",
-    }
-    # Location set to the URI of a task monitor.
-    return Response(
-        json.dumps(res),
-        status=202,
-        mimetype="application/json",
-        headers={"Location": "http://localhost:4661/redfish/v1/TaskService/Tasks/545"},
-    )
+
+
+@app.route("/FWUpdate-smc", methods=["GET"])
+def fwupdate_smc_query():
+    res = {"Accepted": {"code": "Base.v1_4_0.Accepted"}}
+    return Response(json.dumps(res), status=200, mimetype="application/json")
 
 
 @app.route("/FWUpdate-smc", methods=["POST"])
@@ -382,9 +458,7 @@ def fwupdate_smc():
             json.dumps(res),
             status=202,
             mimetype="application/json",
-            headers={
-                "Location": "http://localhost:4661/redfish/v1/TaskService/Tasks/546"
-            },
+            headers={"Location": "/redfish/v1/TaskService/Tasks/546"},
         )
     elif filecontents == "stuck":
         res = {
@@ -406,6 +480,27 @@ def fwupdate_smc():
         return Response(json.dumps(res), status=405, mimetype="application/json")
     else:
         return _failure("data invalid")
+
+
+@app.route("/FWUpdate-hpe", methods=["POST"])
+def fwupdate_hpe():
+    print(request.form)
+    if not request.form["sessionKey"]:
+        return _failure("no sessionKey", status=401)
+
+    data = json.loads(request.form["parameters"])
+
+    if not data["UpdateTarget"]:
+        return _failure("payload will not update the target")
+    if data["UpdateRepository"]:
+        return _failure("payload will update the repository")
+
+    fileitem = request.files["files[]"]
+    if not fileitem:
+        return _failure("no file supplied")
+
+    app._hpeupdatestate = "Complete"
+    return Response(status=200)
 
 
 @app.route("/FWUpdate", methods=["POST"])
@@ -431,7 +526,7 @@ def fwupdate():
         json.dumps(res),
         status=202,
         mimetype="application/json",
-        headers={"Location": "http://localhost:4661/redfish/v1/TaskService/Tasks/545"},
+        headers={"Location": "/redfish/v1/TaskService/Tasks/545"},
     )
 
 
@@ -460,7 +555,7 @@ def startupdate():
         json.dumps(res),
         status=202,
         mimetype="application/json",
-        headers={"Location": "http://localhost:4661/redfish/v1/TaskService/Tasks/546"},
+        headers={"Location": "/redfish/v1/TaskService/Tasks/546"},
     )
 
 

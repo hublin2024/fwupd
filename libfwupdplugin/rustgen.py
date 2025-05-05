@@ -7,6 +7,7 @@
 
 import os
 import sys
+import uuid
 import argparse
 
 from enum import Enum
@@ -91,6 +92,20 @@ class EnumObj:
             if item.default:
                 return True
         return False
+
+    def check(self):
+        # check we're prefixed with something sane
+        if not self.name.startswith("Fu"):
+            raise ValueError(f"enum {self.name} does not have 'Fu' prefix")
+
+        # check we'd not just done ZERO=0, ONE=1, TWO=2, etc
+        indexed = True
+        for i, item in enumerate(self.items):
+            if str(i) != item.default:
+                indexed = False
+                break
+        if indexed:
+            raise ValueError(f"enum {self.name} does not need explicit defaults")
 
     def item(self, name: str) -> Optional["EnumItem"]:
         for item in self.items:
@@ -193,6 +208,11 @@ class StructObj:
                 return True
         return False
 
+    def check(self):
+        # check we're prefixed with something sane
+        if not self.name.startswith("Fu"):
+            raise ValueError(f"struct {self.name} does not have 'Fu' prefix")
+
     def add_private_export(self, derive: str) -> None:
         if self._exports[derive] == Export.PUBLIC:
             return
@@ -275,6 +295,7 @@ class StructItem:
         self.obj: StructObj = obj
         self.element_id: str = ""
         self.type: Type = Type.NONE
+        self.is_packed: bool = False
         self.enum_obj: Optional[EnumObj] = None
         self.struct_obj: Optional[StructObj] = None
         self.default: Optional[str] = None
@@ -426,7 +447,18 @@ class StructItem:
             if val.startswith('"') and val.endswith('"'):
                 return val[1:-1]
             raise ValueError(f"string default {val} needs double quotes")
-        if self.type == Type.GUID or (self.type == Type.U8 and self.n_elements):
+        if self.type == Type.GUID:
+            if val.startswith("0x"):
+                guid = uuid.UUID(bytes_le=bytes.fromhex(val[2:]))
+                raise ValueError(f"integer {val} expected, expected: {guid}")
+            if not val.startswith('"'):
+                raise ValueError(f"string expected, got: {val}")
+            uuid2 = uuid.UUID(val[1:-1])
+            val_hex = ""
+            for value in uuid2.bytes_le:
+                val_hex += f"\\x{value:x}"
+            return val_hex
+        if self.type == Type.U8 and self.n_elements:
             if not val.startswith("0x"):
                 raise ValueError(f"0x prefix for hex number expected, got: {val}")
             if len(val) != (self.size * 2) + 2:
@@ -513,6 +545,16 @@ class StructItem:
             self.type = Type(typestr)
         except ValueError as e:
             raise ValueError(f"invalid type: {typestr}") from e
+
+        # sanity check
+        if (
+            self.enabled
+            and self.is_packed
+            and self.endian == Endian.NATIVE
+            and self.type
+            in [Type.U16, Type.U24, Type.U32, Type.U64, Type.I16, Type.I32, Type.I64]
+        ):
+            raise ValueError(f"endian not specified for packed struct: {typestr}")
 
     def __str__(self) -> str:
         tmp = f"{self.element_id}: "
@@ -619,6 +661,7 @@ class Generator:
             # end of structure
             if line.startswith("}"):
                 if struct_cur:
+                    struct_cur.check()
                     for derive in derives:
                         struct_cur.add_public_export(derive)
                     for item in struct_cur.items:
@@ -627,6 +670,7 @@ class Generator:
                         if item.constant == "$struct_size":
                             item.constant = str(offset)
                 if enum_cur:
+                    enum_cur.check()
                     for derive in derives:
                         enum_cur.add_public_export(derive)
                 struct_cur = None
@@ -666,6 +710,8 @@ class Generator:
                 item._bits_offset = bits_offset
                 item.offset = offset
                 item.element_id = parts[0]
+                if repr_type == "C, packed":
+                    item.is_packed = True
 
                 type_parts = parts[1].split("=", maxsplit=3)
                 try:

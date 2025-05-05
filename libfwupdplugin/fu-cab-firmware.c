@@ -12,7 +12,7 @@
 
 #include "fu-byte-array.h"
 #include "fu-bytes.h"
-#include "fu-cab-firmware.h"
+#include "fu-cab-firmware-private.h"
 #include "fu-cab-image.h"
 #include "fu-cab-struct.h"
 #include "fu-chunk-array.h"
@@ -108,7 +108,7 @@ fu_cab_firmware_set_only_basename(FuCabFirmware *self, gboolean only_basename)
 
 typedef struct {
 	GInputStream *stream;
-	FwupdInstallFlags install_flags;
+	FuFirmwareParseFlags parse_flags;
 	gsize rsvd_folder;
 	gsize rsvd_block;
 	gsize size_total;
@@ -117,6 +117,7 @@ typedef struct {
 	z_stream zstrm;
 	guint8 *decompress_buf;
 	gsize decompress_bufsz;
+	gsize ndatabsz;
 } FuCabFirmwareParseHelper;
 
 static void
@@ -134,23 +135,29 @@ fu_cab_firmware_parse_helper_free(FuCabFirmwareParseHelper *helper)
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(FuCabFirmwareParseHelper, fu_cab_firmware_parse_helper_free)
 
 /* compute the MS cabinet checksum */
-static gboolean
+gboolean
 fu_cab_firmware_compute_checksum(const guint8 *buf, gsize bufsz, guint32 *checksum, GError **error)
 {
+	guint32 tmp = *checksum;
 	for (gsize i = 0; i < bufsz; i += 4) {
-		guint32 ul = 0;
-		guint chunksz = MIN(bufsz - i, 4);
-		if (chunksz == 4) {
-			ul = fu_memread_uint32(buf + i, G_LITTLE_ENDIAN);
+		gsize chunksz = bufsz - i;
+		if (G_LIKELY(chunksz >= 4)) {
+			/* 3,2,1,0 */
+			tmp ^= ((guint32)buf[i + 3] << 24) | ((guint32)buf[i + 2] << 16) |
+			       ((guint32)buf[i + 1] << 8) | (guint32)buf[i + 0];
 		} else if (chunksz == 3) {
-			ul = fu_memread_uint24(buf + i, G_BIG_ENDIAN); /* err.. */
+			/* 0,1,2 -- yes, weird */
+			tmp ^= ((guint32)buf[i + 0] << 16) | ((guint32)buf[i + 1] << 8) |
+			       (guint32)buf[i + 2];
 		} else if (chunksz == 2) {
-			ul = fu_memread_uint16(buf + i, G_BIG_ENDIAN); /* err.. */
-		} else if (chunksz == 1) {
-			ul = buf[i];
+			/* 0,1 -- yes, weird */
+			tmp ^= ((guint32)buf[i + 0] << 8) | (guint32)buf[i + 1];
+		} else {
+			/* 0 */
+			tmp ^= (guint32)buf[i + 0];
 		}
-		*checksum ^= ul;
 	}
+	*checksum = tmp;
 	return TRUE;
 }
 
@@ -233,9 +240,11 @@ fu_cab_firmware_parse_data(FuCabFirmware *self,
 	/* verify checksum */
 	partial_stream =
 	    fu_partial_input_stream_new(helper->stream, *offset + hdr_sz, blob_comp, error);
-	if (partial_stream == NULL)
+	if (partial_stream == NULL) {
+		g_prefix_error(error, "failed to cut cabinet checksum: ");
 		return FALSE;
-	if ((helper->install_flags & FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM) == 0) {
+	}
+	if ((helper->parse_flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_CHECKSUM) == 0) {
 		guint32 checksum = fu_struct_cab_data_get_checksum(st);
 		if (checksum != 0) {
 			guint32 checksum_actual = 0;
@@ -362,7 +371,6 @@ fu_cab_firmware_parse_folder(FuCabFirmware *self,
 			     GError **error)
 {
 	FuCabFirmwarePrivate *priv = GET_PRIVATE(self);
-	gsize offset_folder;
 	g_autoptr(GByteArray) st = NULL;
 
 	/* parse header */
@@ -391,11 +399,18 @@ fu_cab_firmware_parse_folder(FuCabFirmware *self,
 		return FALSE;
 	}
 
-	/* parse CDATA */
-	offset_folder = fu_struct_cab_folder_get_offset(st);
-	for (guint i = 0; i < fu_struct_cab_folder_get_ndatab(st); i++) {
-		if (!fu_cab_firmware_parse_data(self, helper, &offset_folder, folder_data, error))
-			return FALSE;
+	/* parse CDATA, either using the stream offset or the per-spec FuStructCabFolder.ndatab */
+	if (helper->ndatabsz > 0) {
+		for (gsize off = fu_struct_cab_folder_get_offset(st); off < helper->ndatabsz;) {
+			if (!fu_cab_firmware_parse_data(self, helper, &off, folder_data, error))
+				return FALSE;
+		}
+	} else {
+		gsize off = fu_struct_cab_folder_get_offset(st);
+		for (guint16 i = 0; i < fu_struct_cab_folder_get_ndatab(st); i++) {
+			if (!fu_cab_firmware_parse_data(self, helper, &off, folder_data, error))
+				return FALSE;
+		}
 	}
 
 	/* success */
@@ -472,9 +487,11 @@ fu_cab_firmware_parse_file(FuCabFirmware *self,
 					     fu_struct_cab_file_get_uoffset(st),
 					     fu_struct_cab_file_get_usize(st),
 					     error);
-	if (stream == NULL)
+	if (stream == NULL) {
+		g_prefix_error(error, "failed to cut cabinet image: ");
 		return FALSE;
-	if (!fu_firmware_parse_stream(FU_FIRMWARE(img), stream, 0x0, helper->install_flags, error))
+	}
+	if (!fu_firmware_parse_stream(FU_FIRMWARE(img), stream, 0x0, helper->parse_flags, error))
 		return FALSE;
 	if (!fu_firmware_add_image_full(FU_FIRMWARE(self), FU_FIRMWARE(img), error))
 		return FALSE;
@@ -503,7 +520,7 @@ fu_cab_firmware_validate(FuFirmware *firmware, GInputStream *stream, gsize offse
 }
 
 static FuCabFirmwareParseHelper *
-fu_cab_firmware_parse_helper_new(GInputStream *stream, FwupdInstallFlags flags, GError **error)
+fu_cab_firmware_parse_helper_new(GInputStream *stream, FuFirmwareParseFlags flags, GError **error)
 {
 	int zret;
 	g_autoptr(FuCabFirmwareParseHelper) helper = g_new0(FuCabFirmwareParseHelper, 1);
@@ -522,7 +539,7 @@ fu_cab_firmware_parse_helper_new(GInputStream *stream, FwupdInstallFlags flags, 
 	}
 
 	helper->stream = g_object_ref(stream);
-	helper->install_flags = flags;
+	helper->parse_flags = flags;
 	helper->folder_data = g_ptr_array_new_with_free_func((GDestroyNotify)g_object_unref);
 	helper->decompress_bufsz = FU_CAB_FIRMWARE_DECOMPRESS_BUFSZ;
 	return g_steal_pointer(&helper);
@@ -531,7 +548,7 @@ fu_cab_firmware_parse_helper_new(GInputStream *stream, FwupdInstallFlags flags, 
 static gboolean
 fu_cab_firmware_parse(FuFirmware *firmware,
 		      GInputStream *stream,
-		      FwupdInstallFlags flags,
+		      FuFirmwareParseFlags flags,
 		      GError **error)
 {
 	FuCabFirmware *self = FU_CAB_FIRMWARE(firmware);
@@ -606,6 +623,10 @@ fu_cab_firmware_parse(FuFirmware *firmware,
 	helper = fu_cab_firmware_parse_helper_new(stream, flags, error);
 	if (helper == NULL)
 		return FALSE;
+
+	/* if the only folder is >= 2GB then FuStructCabFolder.ndatab will overflow */
+	if (streamsz >= 0x8000 * 0xFFFF && fu_struct_cab_header_get_nr_folders(st) == 1)
+		helper->ndatabsz = streamsz;
 
 	/* reserved sizes */
 	offset += st->len;

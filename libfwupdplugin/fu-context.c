@@ -132,7 +132,10 @@ fu_context_get_fdt(FuContext *self, GError **error)
 		g_autoptr(GFile) file = fu_context_get_fdt_file(error);
 		if (file == NULL)
 			return NULL;
-		if (!fu_firmware_parse_file(fdt_tmp, file, FWUPD_INSTALL_FLAG_NO_SEARCH, error)) {
+		if (!fu_firmware_parse_file(fdt_tmp,
+					    file,
+					    FU_FIRMWARE_PARSE_FLAG_NO_SEARCH,
+					    error)) {
 			g_prefix_error(error, "failed to parse FDT: ");
 			return NULL;
 		}
@@ -218,7 +221,8 @@ fu_context_get_config(FuContext *self)
 /**
  * fu_context_get_smbios_string:
  * @self: a #FuContext
- * @structure_type: a SMBIOS structure type, e.g. %FU_SMBIOS_STRUCTURE_TYPE_BIOS
+ * @type: a SMBIOS structure type, e.g. %FU_SMBIOS_STRUCTURE_TYPE_BIOS
+ * @length: expected length of the structure, or %FU_SMBIOS_STRUCTURE_LENGTH_ANY
  * @offset: a SMBIOS offset
  * @error: (nullable): optional return location for an error
  *
@@ -229,10 +233,14 @@ fu_context_get_config(FuContext *self)
  *
  * Returns: a string, or %NULL
  *
- * Since: 1.6.0
+ * Since: 2.0.7
  **/
 const gchar *
-fu_context_get_smbios_string(FuContext *self, guint8 structure_type, guint8 offset, GError **error)
+fu_context_get_smbios_string(FuContext *self,
+			     guint8 type,
+			     guint8 length,
+			     guint8 offset,
+			     GError **error)
 {
 	FuContextPrivate *priv = GET_PRIVATE(self);
 	g_return_val_if_fail(FU_IS_CONTEXT(self), NULL);
@@ -240,23 +248,24 @@ fu_context_get_smbios_string(FuContext *self, guint8 structure_type, guint8 offs
 		g_critical("cannot use SMBIOS before calling ->load_hwinfo()");
 		return NULL;
 	}
-	return fu_smbios_get_string(priv->smbios, structure_type, offset, error);
+	return fu_smbios_get_string(priv->smbios, type, length, offset, error);
 }
 
 /**
  * fu_context_get_smbios_data:
  * @self: a #FuContext
- * @structure_type: a SMBIOS structure type, e.g. %FU_SMBIOS_STRUCTURE_TYPE_BIOS
+ * @type: a SMBIOS structure type, e.g. %FU_SMBIOS_STRUCTURE_TYPE_BIOS
+ * @length: expected length of the structure, or %FU_SMBIOS_STRUCTURE_LENGTH_ANY
  * @error: (nullable): optional return location for an error
  *
  * Gets all hardware SMBIOS data for a specific type.
  *
  * Returns: (transfer container) (element-type GBytes): a #GBytes, or %NULL if not found
  *
- * Since: 1.9.8
+ * Since: 2.0.7
  **/
 GPtrArray *
-fu_context_get_smbios_data(FuContext *self, guint8 structure_type, GError **error)
+fu_context_get_smbios_data(FuContext *self, guint8 type, guint8 length, GError **error)
 {
 	FuContextPrivate *priv = GET_PRIVATE(self);
 
@@ -268,13 +277,14 @@ fu_context_get_smbios_data(FuContext *self, guint8 structure_type, GError **erro
 		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_INTERNAL, "no data");
 		return NULL;
 	}
-	return fu_smbios_get_data(priv->smbios, structure_type, error);
+	return fu_smbios_get_data(priv->smbios, type, length, error);
 }
 
 /**
  * fu_context_get_smbios_integer:
  * @self: a #FuContext
  * @type: a structure type, e.g. %FU_SMBIOS_STRUCTURE_TYPE_BIOS
+ * @length: expected length of the structure, or %FU_SMBIOS_STRUCTURE_LENGTH_ANY
  * @offset: a structure offset
  * @error: (nullable): optional return location for an error
  *
@@ -285,10 +295,14 @@ fu_context_get_smbios_data(FuContext *self, guint8 structure_type, GError **erro
  *
  * Returns: an integer, or %G_MAXUINT if invalid or not found
  *
- * Since: 1.6.0
+ * Since: 2.0.7
  **/
 guint
-fu_context_get_smbios_integer(FuContext *self, guint8 type, guint8 offset, GError **error)
+fu_context_get_smbios_integer(FuContext *self,
+			      guint8 type,
+			      guint8 length,
+			      guint8 offset,
+			      GError **error)
 {
 	FuContextPrivate *priv = GET_PRIVATE(self);
 	g_return_val_if_fail(FU_IS_CONTEXT(self), G_MAXUINT);
@@ -296,7 +310,7 @@ fu_context_get_smbios_integer(FuContext *self, guint8 type, guint8 offset, GErro
 		g_critical("cannot use SMBIOS before calling ->load_hwinfo()");
 		return G_MAXUINT;
 	}
-	return fu_smbios_get_integer(priv->smbios, type, offset, error);
+	return fu_smbios_get_integer(priv->smbios, type, length, offset, error);
 }
 
 /**
@@ -1002,6 +1016,38 @@ fu_context_housekeeping(FuContext *self)
 typedef gboolean (*FuContextHwidsSetupFunc)(FuContext *self, FuHwids *hwids, GError **error);
 
 static void
+fu_context_detect_full_disk_encryption(FuContext *self)
+{
+	FuContextPrivate *priv = GET_PRIVATE(self);
+	g_autoptr(GPtrArray) devices = NULL;
+	g_autoptr(GError) error_local = NULL;
+
+	g_return_if_fail(FU_IS_CONTEXT(self));
+
+	devices = fu_common_get_block_devices(&error_local);
+	if (devices == NULL) {
+		g_info("Failed to get block devices: %s", error_local->message);
+		return;
+	}
+
+	for (guint i = 0; i < devices->len; i++) {
+		GDBusProxy *proxy = g_ptr_array_index(devices, i);
+		g_autoptr(GVariant) id_type = g_dbus_proxy_get_cached_property(proxy, "IdType");
+		g_autoptr(GVariant) device = g_dbus_proxy_get_cached_property(proxy, "Device");
+		g_autoptr(GVariant) id_label = g_dbus_proxy_get_cached_property(proxy, "IdLabel");
+		if (id_type != NULL && device != NULL &&
+		    g_strcmp0(g_variant_get_string(id_type, NULL), "BitLocker") == 0)
+			priv->flags |= FU_CONTEXT_FLAG_FDE_BITLOCKER;
+
+		if (id_type != NULL && id_label != NULL &&
+		    g_strcmp0(g_variant_get_string(id_label, NULL), "ubuntu-data-enc") == 0 &&
+		    g_strcmp0(g_variant_get_string(id_type, NULL), "crypto_LUKS") == 0) {
+			priv->flags |= FU_CONTEXT_FLAG_FDE_SNAPD;
+		}
+	}
+}
+
+static void
 fu_context_hwid_quirk_cb(FuContext *self,
 			 const gchar *key,
 			 const gchar *value,
@@ -1059,7 +1105,8 @@ fu_context_load_hwinfo(FuContext *self,
 	fu_progress_add_step(progress, FWUPD_STATUS_LOADING, 1, "hwids-setup-funcs");
 	fu_progress_add_step(progress, FWUPD_STATUS_LOADING, 1, "hwids-setup");
 	fu_progress_add_step(progress, FWUPD_STATUS_LOADING, 3, "set-flags");
-	fu_progress_add_step(progress, FWUPD_STATUS_LOADING, 95, "reload-bios-settings");
+	fu_progress_add_step(progress, FWUPD_STATUS_LOADING, 1, "detect-fde");
+	fu_progress_add_step(progress, FWUPD_STATUS_LOADING, 94, "reload-bios-settings");
 
 	/* required always */
 	if (!fu_config_load(priv->config, error))
@@ -1094,6 +1141,9 @@ fu_context_load_hwinfo(FuContext *self,
 						   fu_context_hwid_quirk_cb,
 						   NULL);
 	}
+	fu_progress_step_done(progress);
+
+	fu_context_detect_full_disk_encryption(self);
 	fu_progress_step_done(progress);
 
 	fu_context_add_udev_subsystem(self, "firmware-attributes", NULL);
@@ -1186,6 +1236,16 @@ fu_context_set_power_state(FuContext *self, FuPowerState power_state)
 {
 	FuContextPrivate *priv = GET_PRIVATE(self);
 	g_return_if_fail(FU_IS_CONTEXT(self));
+
+	/* quirk for behavior on Framework systems where the EC reports as discharging
+	 * while on AC but at 100% */
+	if (power_state == FU_POWER_STATE_BATTERY_DISCHARGING && priv->battery_level == 100 &&
+	    fu_context_has_hwid_flag(self, "discharging-when-fully-changed")) {
+		power_state = FU_POWER_STATE_AC_FULLY_CHARGED;
+		g_debug("quirking power state to %s", fu_power_state_to_string(power_state));
+	}
+
+	/* is the same */
 	if (priv->power_state == power_state)
 		return;
 	priv->power_state = power_state;
@@ -1507,6 +1567,8 @@ fu_context_get_esp_volumes(FuContext *self, GError **error)
 	path_tmp = g_getenv("FWUPD_UEFI_ESP_PATH");
 	if (path_tmp != NULL) {
 		g_autoptr(FuVolume) vol = fu_volume_new_from_mount_path(path_tmp);
+		fu_volume_set_partition_kind(vol, FU_VOLUME_KIND_ESP);
+		fu_volume_set_partition_uuid(vol, "00000000-0000-0000-0000-000000000000");
 		fu_context_add_esp_volume(self, vol);
 		return g_ptr_array_ref(priv->esp_volumes);
 	}
@@ -1558,6 +1620,22 @@ fu_context_get_esp_volumes(FuContext *self, GError **error)
 
 	/* success */
 	return g_ptr_array_ref(priv->esp_volumes);
+}
+
+static gboolean
+fu_context_is_esp(FuVolume *esp)
+{
+	g_autofree gchar *mount_point = fu_volume_get_mount_point(esp);
+	g_autofree gchar *fn = NULL;
+	g_autofree gchar *fn2 = NULL;
+
+	if (mount_point == NULL)
+		return FALSE;
+
+	fn = g_build_filename(mount_point, "EFI", NULL);
+	fn2 = g_build_filename(mount_point, "efi", NULL);
+
+	return g_file_test(fn, G_FILE_TEST_IS_DIR) || g_file_test(fn2, G_FILE_TEST_IS_DIR);
 }
 
 static gboolean
@@ -1680,6 +1758,11 @@ fu_context_get_default_esp(FuContext *self, GError **error)
 				}
 			}
 
+			if (!fu_context_is_esp(esp)) {
+				g_debug("not an ESP: %s", fu_volume_get_id(esp));
+				continue;
+			}
+
 			/* big partitions are better than small partitions */
 			score += fu_volume_get_size(esp) / (1024 * 1024);
 
@@ -1794,7 +1877,7 @@ fu_context_esp_load_pe_file(const gchar *filename, GError **error)
 	g_autoptr(FuFirmware) firmware = fu_pefile_firmware_new();
 	g_autoptr(GFile) file = g_file_new_for_path(filename);
 	fu_firmware_set_filename(firmware, filename);
-	if (!fu_firmware_parse_file(firmware, file, FWUPD_INSTALL_FLAG_NONE, error)) {
+	if (!fu_firmware_parse_file(firmware, file, FU_FIRMWARE_PARSE_FLAG_NONE, error)) {
 		g_prefix_error(error, "failed to load %s: ", filename);
 		return NULL;
 	}
@@ -1888,16 +1971,30 @@ fu_context_get_esp_files_for_entry(FuContext *self,
 	filename = g_build_filename(mount_point, dp_filename, NULL);
 	g_debug("check for 1st stage bootloader: %s", filename);
 	if (flags & FU_CONTEXT_ESP_FILE_FLAG_INCLUDE_FIRST_STAGE) {
-		g_autoptr(FuFirmware) firmware = fu_context_esp_load_pe_file(filename, error);
-		if (firmware == NULL)
-			return FALSE;
-		fu_firmware_set_idx(firmware, fu_firmware_get_idx(FU_FIRMWARE(entry)));
-		g_ptr_array_add(files, g_steal_pointer(&firmware));
+		g_autoptr(FuFirmware) firmware = NULL;
+		g_autoptr(GError) error_local = NULL;
+
+		/* ignore if the file cannot be loaded as a PE file */
+		firmware = fu_context_esp_load_pe_file(filename, &error_local);
+		if (firmware == NULL) {
+			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED) ||
+			    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE)) {
+				g_debug("ignoring: %s", error_local->message);
+			} else {
+				g_propagate_error(error, g_steal_pointer(&error_local));
+				return FALSE;
+			}
+		} else {
+			fu_firmware_set_idx(firmware, fu_firmware_get_idx(FU_FIRMWARE(entry)));
+			g_ptr_array_add(files, g_steal_pointer(&firmware));
+		}
 	}
 
 	/* the 2nd stage bootloader, typically grub */
 	if (flags & FU_CONTEXT_ESP_FILE_FLAG_INCLUDE_SECOND_STAGE &&
 	    g_str_has_suffix(filename, shim_name)) {
+		g_autoptr(FuFirmware) firmware = NULL;
+		g_autoptr(GError) error_local = NULL;
 		g_autoptr(GString) filename2 = g_string_new(filename);
 		const gchar *path;
 
@@ -1911,11 +2008,18 @@ fu_context_get_esp_files_for_entry(FuContext *self,
 			g_string_replace(filename2, shim_name, grub_name, 1);
 		}
 		g_debug("check for 2nd stage bootloader: %s", filename2->str);
-		if (g_file_test(filename2->str, G_FILE_TEST_EXISTS)) {
-			g_autoptr(FuFirmware) firmware =
-			    fu_context_esp_load_pe_file(filename2->str, error);
-			if (firmware == NULL)
+
+		/* ignore if the file cannot be loaded as a PE file */
+		firmware = fu_context_esp_load_pe_file(filename2->str, &error_local);
+		if (firmware == NULL) {
+			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED) ||
+			    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE)) {
+				g_debug("ignoring: %s", error_local->message);
+			} else {
+				g_propagate_error(error, g_steal_pointer(&error_local));
 				return FALSE;
+			}
+		} else {
 			fu_firmware_set_idx(firmware, fu_firmware_get_idx(FU_FIRMWARE(entry)));
 			g_ptr_array_add(files, g_steal_pointer(&firmware));
 		}
@@ -1925,13 +2029,23 @@ fu_context_get_esp_files_for_entry(FuContext *self,
 	if (flags & FU_CONTEXT_ESP_FILE_FLAG_INCLUDE_REVOCATIONS &&
 	    g_str_has_suffix(filename, shim_name)) {
 		g_autoptr(GString) filename2 = g_string_new(filename);
+		g_autoptr(FuFirmware) firmware = NULL;
+		g_autoptr(GError) error_local = NULL;
+
 		g_string_replace(filename2, shim_name, "revocations.efi", 1);
 		g_debug("check for revocation: %s", filename2->str);
-		if (g_file_test(filename2->str, G_FILE_TEST_EXISTS)) {
-			g_autoptr(FuFirmware) firmware =
-			    fu_context_esp_load_pe_file(filename2->str, error);
-			if (firmware == NULL)
+
+		/* ignore if the file cannot be loaded as a PE file */
+		firmware = fu_context_esp_load_pe_file(filename2->str, &error_local);
+		if (firmware == NULL) {
+			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED) ||
+			    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE)) {
+				g_debug("ignoring: %s", error_local->message);
+			} else {
+				g_propagate_error(error, g_steal_pointer(&error_local));
 				return FALSE;
+			}
+		} else {
 			fu_firmware_set_idx(firmware, fu_firmware_get_idx(FU_FIRMWARE(entry)));
 			g_ptr_array_add(files, g_steal_pointer(&firmware));
 		}
@@ -1968,8 +2082,18 @@ fu_context_get_esp_files(FuContext *self, FuContextEspFileFlags flags, GError **
 		return NULL;
 	for (guint i = 0; i < entries->len; i++) {
 		FuEfiLoadOption *entry = g_ptr_array_index(entries, i);
-		if (!fu_context_get_esp_files_for_entry(self, entry, files, flags, error))
+		g_autoptr(GError) error_local = NULL;
+		if (!fu_context_get_esp_files_for_entry(self, entry, files, flags, &error_local)) {
+			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_FOUND) ||
+			    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE)) {
+				g_debug("ignoring %s: %s",
+					fu_firmware_get_id(FU_FIRMWARE(entry)),
+					error_local->message);
+				continue;
+			}
+			g_propagate_error(error, g_steal_pointer(&error_local));
 			return NULL;
+		}
 	}
 
 	/* success */
@@ -2042,6 +2166,23 @@ fu_context_get_backend_by_name(FuContext *self, const gchar *name, GError **erro
 	}
 	g_set_error(error, FWUPD_ERROR, FWUPD_ERROR_NOT_FOUND, "no backend with name %s", name);
 	return NULL;
+}
+
+/* private */
+gboolean
+fu_context_has_backend(FuContext *self, const gchar *name)
+{
+	FuContextPrivate *priv = GET_PRIVATE(self);
+
+	g_return_val_if_fail(FU_IS_CONTEXT(self), FALSE);
+	g_return_val_if_fail(name != NULL, FALSE);
+
+	for (guint i = 0; i < priv->backends->len; i++) {
+		FuBackend *backend = g_ptr_array_index(priv->backends, i);
+		if (g_strcmp0(fu_backend_get_name(backend), name) == 0)
+			return TRUE;
+	}
+	return FALSE;
 }
 
 /* private */

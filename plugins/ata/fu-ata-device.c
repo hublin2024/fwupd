@@ -7,6 +7,7 @@
 #include "config.h"
 
 #include <scsi/sg.h>
+#include <stddef.h>
 
 #include "fu-ata-device.h"
 
@@ -144,7 +145,6 @@ fu_ata_device_parse_id_maybe_dell(FuAtaDevice *self, const guint16 *buf)
 	g_autofree gchar *component_id = NULL;
 	g_autofree gchar *guid_efi = NULL;
 	g_autofree gchar *guid_id = NULL;
-	g_autofree gchar *guid = NULL;
 
 	/* add extra component ID if set */
 	component_id = fu_ata_device_get_string(buf, 137, 140);
@@ -160,13 +160,11 @@ fu_ata_device_parse_id_maybe_dell(FuAtaDevice *self, const guint16 *buf)
 	/* add instance ID *and* GUID as using no-auto-instance-ids */
 	guid_id = g_strdup_printf("STORAGE-DELL-%s", component_id);
 	fu_device_add_instance_id(FU_DEVICE(self), guid_id);
-	guid = fwupd_guid_hash_string(guid_id);
-	fu_device_add_guid(FU_DEVICE(self), guid);
 
 	/* also add the EFI GUID */
 	guid_efi = fu_ata_device_get_guid_safe(buf, 129);
 	if (guid_efi != NULL)
-		fu_device_add_guid(FU_DEVICE(self), guid_efi);
+		fu_device_add_instance_id(FU_DEVICE(self), guid_efi);
 
 	/* owned by Dell */
 	fu_device_set_vendor(FU_DEVICE(self), "Dell");
@@ -893,6 +891,7 @@ fu_ata_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 98, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
@@ -919,17 +918,9 @@ fu_ata_device_init(FuAtaDevice *self)
 }
 
 static void
-fu_ata_device_finalize(GObject *object)
-{
-	G_OBJECT_CLASS(fu_ata_device_parent_class)->finalize(object);
-}
-
-static void
 fu_ata_device_class_init(FuAtaDeviceClass *klass)
 {
-	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuDeviceClass *device_class = FU_DEVICE_CLASS(klass);
-	object_class->finalize = fu_ata_device_finalize;
 	device_class->to_string = fu_ata_device_to_string;
 	device_class->set_quirk_kv = fu_ata_device_set_quirk_kv;
 	device_class->setup = fu_ata_device_setup;

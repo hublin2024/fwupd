@@ -505,7 +505,7 @@ fu_wac_device_write_firmware(FuDevice *device,
 		blob_tmp = fu_firmware_write_chunk(img, fd->start_addr, fd->block_sz, NULL);
 		if (blob_tmp == NULL)
 			break;
-		blob_block = fu_bytes_pad(blob_tmp, fd->block_sz);
+		blob_block = fu_bytes_pad(blob_tmp, fd->block_sz, 0xFF);
 		g_hash_table_insert(fd_blobs, fd, blob_block);
 	}
 
@@ -563,7 +563,8 @@ fu_wac_device_write_firmware(FuDevice *device,
 		}
 
 		/* calculate expected checksum and save to device RAM */
-		csum_local[i] = GUINT32_TO_LE(fu_sum32w_bytes(blob_block, G_LITTLE_ENDIAN));
+		csum_local[i] = GUINT32_TO_LE(/* nocheck:blocked */
+					      fu_sum32w_bytes(blob_block, G_LITTLE_ENDIAN));
 		g_debug("block checksum %02u: 0x%08x", i, csum_local[i]);
 		if (!fu_wac_device_set_checksum_of_block(self, i, csum_local[i], error))
 			return FALSE;
@@ -814,9 +815,9 @@ fu_wac_device_add_modules(FuWacDevice *self, GError **error)
 		ver2 = fu_struct_module_item_get_version2(st_item);
 
 		/*
-  		* When ver2 is available and not 0, it is appended to ver in order to make it BCD
-  		* 32bits, otherwise it stays BCD 16bits.
-    		*/
+		 * When ver2 is available and not 0, it is appended to ver in order to make it BCD
+		 * 32bits, otherwise it stays BCD 16bits.
+		 */
 		if (ver2 != 0xFF && ver2 != 0) {
 			ver = (ver << 16);
 			ver |= (ver2 << 8);
@@ -948,6 +949,7 @@ static void
 fu_wac_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 98, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");

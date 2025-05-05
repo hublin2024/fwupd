@@ -3,7 +3,7 @@
 # This file is distributed under the same license as the fwupd package.
 #
 # Translators:
-# Anders Jonsson <transifex@norsjovallen.se>, 2017,2019-2024
+# Anders Jonsson <transifex@norsjovallen.se>, 2017,2019-2025
 # andhe <andreas@fatal.se>, 2017
 # Josef Andersson <janderssonse@proton.me>, 2015,2017-2018
 # Josef Andersson <l10nl18nsweja@gmail.com>, 2015,2017
@@ -126,6 +126,16 @@ msgstr "%s GPU-uppdatering"
 #, c-format
 msgid "%s Graphics Tablet Update"
 msgstr "%s-ritplatteuppdatering"
+
+#. TRANSLATORS: two miniature speakers attached to your ears
+#, c-format
+msgid "%s Headphones Update"
+msgstr "%s-hörlursuppdatering"
+
+#. TRANSLATORS: headphones with an integrated microphone
+#, c-format
+msgid "%s Headset Update"
+msgstr "%s-headsetuppdatering"
 
 #. TRANSLATORS: an input device used by gamers, e.g. a joystick
 #, c-format
@@ -319,6 +329,13 @@ msgid_plural "%u seconds"
 msgstr[0] "%u sekund"
 msgstr[1] "%u sekunder"
 
+#. TRANSLATORS: device tests can be specific to a CPU type
+#, c-format
+msgid "%u test was skipped"
+msgid_plural "%u tests were skipped"
+msgstr[0] "%u test hoppades över"
+msgstr[1] "%u test hoppades över"
+
 #. TRANSLATORS: first percentage is current value, 2nd percentage is the
 #. * lowest limit the firmware update is allowed for the update to happen
 #, c-format
@@ -419,6 +436,10 @@ msgstr "Tillåt ominstallation av befintliga versioner av fast programvara"
 msgid "Allow switching firmware branch"
 msgstr "Tillåt att byta gren för fast programvara"
 
+#. TRANSLATORS: error message
+msgid "Already exists, and no --force specified"
+msgstr "Finns redan, och --force angavs inte"
+
 #. TRANSLATORS: is not the main firmware stream
 msgid "Alternate branch"
 msgstr "Alternativ gren"
@@ -483,8 +504,16 @@ msgid "Authentication is required to downgrade the firmware on this machine"
 msgstr "Autentisering krävs för att nedgradera den fasta programvaran på denna maskin"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to enable emulation data collection"
+msgstr "Autentisering krävs för att aktivera emuleringsdatainsamling"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to fix a host security issue"
 msgstr "Autentisering krävs för att fixa ett säkerhetsproblem på värden"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to load hardware emulation data"
+msgstr "Autentisering krävs för att läsa in hårdvaruemuleringsdata"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to modify BIOS settings"
@@ -507,12 +536,20 @@ msgid "Authentication is required to reset daemon configuration to defaults"
 msgstr "Autentisering krävs för att återställa demonkonfigurationer till standardvärden"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to save hardware emulation data"
+msgstr "Autentisering krävs för att spara hårdvaruemuleringsdata"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to set the list of approved firmware"
 msgstr "Autentisering krävs för att sätta listan över godkänd fast programvara"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to sign data using the client certificate"
 msgstr "Autentisering krävs för att signera data med klientcertifikatet"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to stop the firmware update service"
+msgstr "Autentisering krävs för att stoppa tjänsten för uppdatering av fast programvara"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to switch to the new firmware version"
@@ -541,6 +578,11 @@ msgstr "Autentisering krävs för att uppdatera lagrade kontrollsummor för enhe
 #. TRANSLATORS: Boolean value to automatically send reports
 msgid "Automatic Reporting"
 msgstr "Automatisk rapportering"
+
+#. TRANSLATORS: we can auto-uninhibit after a timeout
+#, c-format
+msgid "Automatically uninhibiting in %ums…"
+msgstr "Släpper automatiskt hindrande om %ums…"
 
 #. TRANSLATORS: can we JFDI?
 msgid "Automatically upload every time?"
@@ -624,6 +666,10 @@ msgstr "CET-plattform"
 msgid "CPU Microcode must be updated to mitigate against various information-disclosure security issues."
 msgstr "CPU-mikrokod måste uppdateras för att förmildra mot diverse informationsavslöjande säkerhetsproblem."
 
+#. TRANSLATORS: we can save all device enumeration events for emulation
+msgid "Can tag for emulation"
+msgstr "Kan tagga för emulering"
+
 #. TRANSLATORS: this is to abort the interactive prompt
 msgid "Cancel"
 msgstr "Avbryt"
@@ -636,10 +682,6 @@ msgstr "Avbruten"
 #. TRANSLATORS: same or newer update already applied
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "Kan inte tillämpa eftersom dbx-uppdatering redan har tillämpats."
-
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "Kan inte tillämpa uppdateringar på live-media"
 
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
@@ -687,6 +729,10 @@ msgstr "Kommandot hittades inte"
 msgid "Community supported"
 msgstr "Stöds av gemenskapen"
 
+#. TRANSLATORS: command description
+msgid "Compares two versions for equality"
+msgstr "Jämför om två versioner är lika"
+
 #. TRANSLATORS: title prefix for the BIOS settings dialog
 msgid "Configuration Change Suggested"
 msgstr "Föreslagen ändring av konfiguration"
@@ -706,6 +752,10 @@ msgstr "Control-flow Enforcement Technology"
 #. TRANSLATORS: command description
 msgid "Convert a firmware file"
 msgstr "Konvertera en fast programvarufil"
+
+#. TRANSLATORS: command description
+msgid "Create an EFI boot entry"
+msgstr "Skapa en EFI-uppstartspost"
 
 #. TRANSLATORS: when the update was built
 msgid "Created"
@@ -738,6 +788,10 @@ msgstr "Felsökningsalternativ"
 #. TRANSLATORS: decompressing the firmware file
 msgid "Decompressing…"
 msgstr "Dekomprimerar…"
+
+#. TRANSLATORS: command description
+msgid "Delete an EFI boot entry"
+msgstr "Ta bort en EFI-uppstartspost"
 
 #. TRANSLATORS: description of BIOS setting
 #. TRANSLATORS: multiline description of device
@@ -992,6 +1046,11 @@ msgstr "Skriv inte till historikdatabasen"
 msgid "Do you understand the consequences of changing the firmware branch?"
 msgstr "Förstår du konsekvenserna av att byta gren av fast programvara?"
 
+#. TRANSLATORS: ask the user if it's okay to convert,
+#. * "it" being the data contained in the EFI boot entry
+msgid "Do you want to convert it now?"
+msgstr "Vill du konvertera den nu?"
+
 #. TRANSLATORS: offer to disable this nag
 msgid "Do you want to disable this feature for future updates?"
 msgstr "Vill du inaktivera den här funktionen för framtida uppdateringar?"
@@ -1043,6 +1102,10 @@ msgstr "Dumpa SMBIOS-data från en fil"
 msgid "Duration"
 msgstr "Tid"
 
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "EMULATION-FILE [ARCHIVE-FILE]"
+msgstr "EMULERINGSFIL [ARKIVFIL]"
+
 #. TRANSLATORS: longer description
 msgid "Each system should have tests to ensure firmware security."
 msgstr "Varje system bör ha test för att säkerställa den fasta programvarans säkerhet."
@@ -1061,6 +1124,9 @@ msgstr "Emulerad värd"
 
 msgid "Enable"
 msgstr "Aktivera"
+
+msgid "Enable emulation data collection"
+msgstr "Aktivera datasamling för emulering"
 
 #. TRANSLATORS: a remote here is like a 'repo' or software source
 msgid "Enable new remote?"
@@ -1297,6 +1363,10 @@ msgstr "BIOS-region för fast programvara"
 msgid "Firmware BIOS Region protects device firmware memory from being tampered with."
 msgstr "BIOS-region för fast programvara skyddar enhetens minne för fast programvara från att mixtras med."
 
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "Fast programvara bas-URI"
+
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
 msgstr "D-Bus-tjänst för uppdatering av fast programvara"
@@ -1432,6 +1502,10 @@ msgid "Get all enabled plugins registered with the system"
 msgstr "Erhåll alla aktiverade insticksmoduler som är registrerade i systemet"
 
 #. TRANSLATORS: command description
+msgid "Get all known version formats"
+msgstr "Hämta alla kända versionsformat"
+
+#. TRANSLATORS: command description
 msgid "Get device report metadata"
 msgstr "Hämta rapportmetadata för enhet"
 
@@ -1495,6 +1569,22 @@ msgstr "ID-attribut för värdsäkerhet skickades, tack!"
 #. TRANSLATORS: this is a string like 'HSI:2-U'
 msgid "Host Security ID:"
 msgstr "Säkerhets-ID för värd:"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX"
+msgstr "INDEX"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX KEY [VALUE]"
+msgstr "INDEX NYCKEL [VÄRDE]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "INDEX NAMN MÅL [MONTERINGSPUNKT]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX1,INDEX2"
+msgstr "INDEX1,INDEX2"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "INHIBIT-ID"
@@ -1718,6 +1808,14 @@ msgstr "Ogiltiga argument"
 msgid "Invalid arguments, expected GUID"
 msgstr "Ogiltiga argument, GUID förväntades"
 
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX KEY [VALUE]"
+msgstr "Ogiltiga argument, INDEX NYCKEL [VÄRDE] förväntades"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "Ogiltiga argument, INDEX NAMN MÅL [MONTERINGSPUNKT] förväntades"
+
 #. TRANSLATOR: This is the error message for
 #. * incorrect parameter
 msgid "Invalid arguments, expected an AppStream ID"
@@ -1726,6 +1824,10 @@ msgstr "Ogiltiga argument, ett AppStream-ID förväntades"
 #. TRANSLATORS: error message
 msgid "Invalid arguments, expected at least ARCHIVE FIRMWARE METAINFO"
 msgstr "Ogiltiga argument, förväntade åtminstone ARKIV FAST_PROGRAMVARA METAINFO"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected base-16 integer"
+msgstr "Ogiltiga argument, heltal i bas 16 förväntades"
 
 #. TRANSLATORS: version is older
 msgid "Is downgrade"
@@ -2029,6 +2131,11 @@ msgstr "Inga uppdateringar tillgängliga"
 
 msgid "No updates available for remaining devices"
 msgstr "Inga uppdateringar tillgängliga för kvarvarande enheter"
+
+#. TRANSLATORS: error message
+#, c-format
+msgid "No volume matched %s"
+msgstr "Ingen volym matchade %s"
 
 #. TRANSLATORS: version cannot be installed due to policy
 msgid "Not approved"
@@ -2380,6 +2487,10 @@ msgstr "Kärnan som körs är för gammal"
 msgid "Runtime Suffix"
 msgstr "Exekveringssuffix"
 
+#. TRANSLATORS: Software Bill of Materials link
+msgid "SBOM"
+msgstr "SBOM"
+
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "SECTION"
 msgstr "AVSNITT"
@@ -2395,6 +2506,10 @@ msgstr "INSTÄLLNING1 VÄRDE1 [INSTÄLLNING2] [VÄRDE2]"
 #. TRANSLATORS: Title: SMAP = Supervisor Mode Access Prevention
 msgid "SMAP"
 msgstr "SMAP"
+
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "SMM locked down"
+msgstr "SMM låst"
 
 #. TRANSLATORS: Title: SPI refers to the flash chip in the computer
 msgid "SPI BIOS Descriptor"
@@ -2488,6 +2603,18 @@ msgstr "Ställ in en BIOS-inställning"
 
 msgid "Set one or more BIOS settings"
 msgstr "Ställ in en eller flera BIOS-inställningar"
+
+#. TRANSLATORS: command description
+msgid "Set or remove an EFI boot hive entry"
+msgstr "Ställ in eller ta bort en EFI-uppstartskupepost"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot next"
+msgstr "Ställ in EFI-uppstarten härnäst"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot order"
+msgstr "Ställ in EFI-uppstartsordningen"
 
 #. TRANSLATORS: command line option
 msgid "Set the download retries for transient errors"
@@ -2591,6 +2718,9 @@ msgstr "Källa"
 #. TRANSLATORS: command line option
 msgid "Specify the dbx database file"
 msgstr "Ange dbx-databasfilen"
+
+msgid "Stop the fwupd service"
+msgstr "Stoppa fwupd-tjänsten"
 
 #. TRANSLATORS: The BIOS setting accepts strings
 msgid "String"
@@ -2737,18 +2867,26 @@ msgstr "Byt gren för fast programvara på enheten"
 msgid "Sync firmware versions to the chosen configuration"
 msgstr "Synkronisera versioner för fast programvara till den valda konfigurationen"
 
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "System Management Mode"
+msgstr "Systemhanteringsläge"
+
 #. TRANSLATORS: this CLI tool is now preventing system updates
 msgid "System Update Inhibited"
 msgstr "Systemuppdatering hindrad."
 
+#. TRANSLATORS: longer description
+msgid "System management mode is used by the firmware to access resident BIOS code and data."
+msgstr "Systemhanteringsläge används av den fasta programvaran för att komma åt inbyggd BIOS-kod och data."
+
 #. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "Systemet har för lite batteri för att utföra uppdateringen"
+msgid "System power is too low"
+msgstr "Systemet har för lite batteri"
 
 #. TRANSLATORS: as in laptop battery power
 #, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "Systemet har för lite batteri för att utföra uppdateringen (%u%%, behöver %u%%)"
+msgid "System power is too low (%u%%, requires %u%%)"
+msgstr "Systemet har för lite batteri (%u%%, kräver %u%%)"
 
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"
@@ -2827,6 +2965,14 @@ msgstr "Testad av %s"
 msgid "Tested by trusted vendor"
 msgstr "Testad av en betrodd leverantör"
 
+#. TRANSLATORS: the boot entry was in a legacy format
+msgid "The EFI boot entry is not in hive format, and shim may not be new enough to read it."
+msgstr "EFI-uppstartsposten är inte i kupformat, och mellanlägg kanske inte är nytt nog för att läsa den."
+
+#. TRANSLATORS: try to treat the legacy format as a hive
+msgid "The EFI boot entry was not in hive format, falling back"
+msgstr "EFI-uppstartsposten var inte i kupformat, använder reserv"
+
 #. TRANSLATORS: longer description
 msgid "The Intel Management Engine Key Manifest must be valid so that the device firmware can be trusted by the CPU."
 msgstr "Nyckelmanifestet för Intel Management Engine måste vara giltigt så att enhetens fasta programvara kan vara betrodd av processorn."
@@ -2854,6 +3000,18 @@ msgstr "TPM PCR0 skiljer sig från rekonstruktion."
 #. TRANSLATORS: longer description
 msgid "The UEFI Platform Key is used to determine if device software comes from a trusted source."
 msgstr "UEFI-plattformsnyckeln används för att avgöra om enhetsprogramvara kommer från en betrodd källa."
+
+#. TRANSLATORS: HSI event title
+msgid "The UEFI certificate store is now up to date"
+msgstr "UEFI-certifikatlagringen är nu uppdaterad"
+
+#. TRANSLATORS: longer description
+msgid "The UEFI db contains the list of valid certificates that can be used to authorize what EFI binaries are allowed to run."
+msgstr "UEFI-databasen innehåller listan med giltiga certifikat som kan användas för att auktorisera vilka EFI-binärer som tillåts köra."
+
+#. TRANSLATORS: longer description
+msgid "The UEFI system can set up memory attributes at boot which prevent common exploits from running."
+msgstr "UEFI-systemet kan konfigurera minnesattribut vid uppstart som förhindrar vanliga attackmetoder från att köras."
 
 #. TRANSLATORS: the user is SOL for support...
 msgid "The daemon has loaded 3rd party code and is no longer supported by the upstream developers!"
@@ -2998,6 +3156,10 @@ msgstr "UEFI ESP-partition kanske inte konfigurerats korrekt"
 msgid "UEFI ESP partition not detected or configured"
 msgstr "UEFI ESP-partition upptäcktes inte eller är inte konfigurerad"
 
+#. TRANSLATORS: Title: is UEFI early-boot memory protection turned on
+msgid "UEFI Memory Protection"
+msgstr "UEFI-minnesskydd"
+
 #. TRANSLATORS: Title: PK is the 'platform key' for the machine
 msgid "UEFI Platform Key"
 msgstr "UEFI-plattformsnyckel"
@@ -3022,6 +3184,10 @@ msgstr "UEFI-uppstartstjänstvariabler"
 msgid "UEFI capsule updates not available or enabled in firmware setup"
 msgstr "UEFI-kapseluppdateringar är inte tillgängliga eller aktiverade i konfiguration för fast programvara"
 
+#. TRANSLATORS: Title: is UEFI db up-to-date
+msgid "UEFI db"
+msgstr "UEFI-db"
+
 #. TRANSLATORS: program name
 msgid "UEFI dbx Utility"
 msgstr "UEFI dbx-verktyg"
@@ -3029,6 +3195,26 @@ msgstr "UEFI dbx-verktyg"
 #. TRANSLATORS: system is not booted in UEFI mode
 msgid "UEFI firmware can not be updated in legacy BIOS mode"
 msgstr "Fast UEFI-programvara kan inte uppdateras i äldre BIOS-läge"
+
+#. TRANSLATORS: Title: is UEFI early-boot memory protection turned on
+msgid "UEFI memory protection"
+msgstr "UEFI-minnesskydd"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection enabled and locked"
+msgstr "UEFI-minnesskydd aktiverat och låst"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection enabled but not locked"
+msgstr "UEFI-minnesskydd aktiverat men inte låst"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection is now locked"
+msgstr "UEFI-minnesskydd är nu låst"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection is now unlocked"
+msgstr "UEFI-minnesskydd är nu olåst"
 
 #. TRANSLATORS: Title: PK is the 'platform key' for the machine
 msgid "UEFI platform key"
@@ -3225,6 +3411,10 @@ msgstr "Användare har aviserats"
 msgid "Username"
 msgstr "Användarnamn"
 
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "VERSION1 VERSION2 [FORMAT]"
+msgstr "VERSION1 VERSION2 [FORMAT]"
+
 #. TRANSLATORS: Suffix: the HSI result
 msgid "Valid"
 msgstr "Giltig"
@@ -3339,8 +3529,12 @@ msgid "[FILENAME1] [FILENAME2]"
 msgstr "[FILNAMN1] [FILNAMN2]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[ORSAK]"
+msgid "[FWUPD-VERSION]"
+msgstr "[FWUPD-VERSION]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "[REASON] [TIMEOUT]"
+msgstr "[ORSAK][TIDSGRÄNS-UPPNÅDD]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SECTION] KEY VALUE"

@@ -38,6 +38,271 @@
     <binary>fwupdtool</binary>
   </provides>
   <releases>
+    <release version="2.0.8" date="2025-04-09">
+      <description>
+        <p>
+          This release adds the following features:
+        </p>
+        <ul>
+          <li>Add the updated UEFI db as a new HSI attribute</li>
+          <li>Add two new plugins that can update the UEFI Signature Database and KEK</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Add /sys/firmware/efi/efivars to ReadWritePaths</li>
+          <li>Avoid any DPAUX IO if the BnR DPCD does not match</li>
+          <li>Be more careful falling back to older emulation versions</li>
+          <li>Detect the Firehose protocol features if not automatically sent</li>
+          <li>Do not match SMC Redfish method on non-Supermicro hardware</li>
+          <li>Do not show prompts or messages in --json mode</li>
+          <li>Fix a critical warning when enumerating DTH135K0C</li>
+          <li>Make the EFI LOADOPT either a path or ShimHive when setting metadata</li>
+          <li>Match lowercase directory names when checking for ESP</li>
+          <li>Only allow UEFI capsule updates on UEFI-capable architectures</li>
+          <li>Set the version format when using fwupdtool install offline</li>
+          <li>Support segment value 0 in the ccgx-dmc image parser</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.0.7" date="2025-03-25">
+      <description>
+        <p>
+          This release adds the following features:
+        </p>
+        <ul>
+          <li>Allow calling 'fwupdtool security' with a fwupd version parameter</li>
+          <li>A new plugin to update B&amp;R DisplayPort receivers</li>
+          <li>A new plugin to update Intel CVS cameras</li>
+          <li>A new plugin to verify UEFI memory protection attributes</li>
+          <li>A new quirk to signify that no additional ESP space is required</li>
+          <li>Build additional Redfish instance IDs for Dell server hardware</li>
+          <li>Implement the HPE proprietary Redfish firmware push method</li>
+          <li>Support cabinet archives greater in size than 2GB</li>
+          <li>Support for showing the SBOM release URL</li>
+          <li>Support for UEFI capsule installation in the bootloader</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Always close USB file descriptors after starting the daemon</li>
+          <li>Do not add a Redfish release date if set to 00:00:00Z</li>
+          <li>Fix a critical warning when rescanning a device with no GUIDs</li>
+          <li>Fix a small memory leak when emumerating Logitech Rallysystem devices</li>
+          <li>Fix a tiny Redfish memory leak when writing firmware</li>
+          <li>Fix building against pygobject 3.52</li>
+          <li>Fix Logitech BulkController setup for new device firmware versions</li>
+          <li>Fix scaler-only Wacom USB update deployment</li>
+          <li>Fix updating the RMM component in the dell-kestrel dock</li>
+          <li>Fix writing new EFI variables to workaround a kernel regression</li>
+          <li>Make PCI NAME and SSVID_SSPID based modem-manager IDs visible</li>
+          <li>Parse firmware before putting the device into bootloader mode</li>
+          <li>Prepend the capsule header when using Capsule-on-Disk</li>
+          <li>Put a memory limit on decoding LZMA streams when parsing firmware</li>
+          <li>Retry claiming the fastboot interface for up to 2500ms</li>
+          <li>Trigger dpaux rescan on drm changes correctly</li>
+          <li>Use the metadata version format to set the version_lowest when required</li>
+        </ul>
+        <p>This release adds support for the following hardware:</p>
+        <ul>
+          <li>Another HP wireless dongle</li>
+          <li>Lenovo ThinkPad Thunderbolt 4 Smart Dock Gen2</li>
+          <li>Lenovo USB-C Dual Display Travel Dock</li>
+          <li>More EDL 5G modem devices</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.0.6" date="2025-02-14">
+      <description>
+        <p>
+          This release adds the following features:
+        </p>
+        <ul>
+          <li>Add 'fwupdtool efiboot-hive' to allow setting the nmbl cmdline</li>
+          <li>Allow setting the inhibit reason from fwupdmgr</li>
+          <li>Allow USB-provided hidraw devices to use DS-20 descriptors</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Correctly deploy the dbx on MSI hardware</li>
+          <li>Correctly extract the milestone from Lenovo version numbers</li>
+          <li>Do not add invalid CoSWID entities to fix a fuzzing hang</li>
+          <li>Fix Logitech HID++ child device detection</li>
+          <li>Get the correct internal network VID and PID from Redfish</li>
+          <li>Include the payload length in the Wacom scaler update start command</li>
+          <li>Only use emulated devices when using device-emulate</li>
+          <li>Reload the thunderbolt retimer version after the payload is deployed</li>
+          <li>Speed up startup by ~1% by limiting the precision of percentage updates</li>
+          <li>Support new version formats for future Huddly devices</li>
+          <li>Updating the Logitech Rallybar in a more reliable way</li>
+        </ul>
+        <p>This release adds support for the following hardware:</p>
+        <ul>
+          <li>HPE Gen10/Gen10+ devices using Redfish</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.0.5" date="2025-02-03">
+      <description>
+        <p>
+          This release adds the following features:
+        </p>
+        <ul>
+          <li>Allow emulating devices reading EFI keys</li>
+          <li>Allow skipping device tests by CPU architecture</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Cleanup Dell kestrel devices when disconnected</li>
+          <li>Correctly build binary EFI_SIGNATURE_LIST objects</li>
+          <li>Do not allow dbx updates when no ESP was found</li>
+          <li>Ignore BootXXXX entries that do not exist when checking the dbx</li>
+          <li>Ignore EFI binaries that are zero-sized, or not well formed</li>
+          <li>Inhibit dbx updates if snapd is not available when using Ubuntu-style FDE</li>
+          <li>Only match the device checksum if the protocol matches</li>
+          <li>Raise authentication requirements for emulation-load</li>
+          <li>Request to upload failed reports for install/downgrade too</li>
+          <li>Use the kernel architecture when building the dbx instance ID</li>
+          <li>Write sbatlevel to PE/COFF files correctly</li>
+        </ul>
+        <p>This release adds support for the following hardware:</p>
+        <ul>
+          <li>More ELAN Fingerprint readers</li>
+          <li>Star Labs StarLite Magnetic Keyboard</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.0.4" date="2025-01-20">
+      <description>
+        <p>
+          This release adds the following features:
+        </p>
+        <ul>
+          <li>Record the entire USB descriptor in the emulation data</li>
+          <li>Return defined return code when network metadata refresh fails</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Add a new private flag of 'delayed-removal' to remove a footgun</li>
+          <li>Added a more specific instance ID for qc-s5gen2 USB devices</li>
+          <li>Add fadvise64 to the systemd syscall allowlist</li>
+          <li>Add the Unifying bootloader VID/PID as a full instance ID</li>
+          <li>Allow disabling zero-length packet for modem-manager devices</li>
+          <li>Allow recovering Logitech Bolt receiver in bootloader mode</li>
+          <li>Correctly parse CSV streams without trailing NULs</li>
+          <li>Detect if network is reachable before downloading metadata</li>
+          <li>Disabling reading the OptionROM device after dumping</li>
+          <li>Do not claim kernel interface to avoid Parade downstream port resets</li>
+          <li>Do not save BootOrder when measuring system integrity</li>
+          <li>Enumerate child nordic-hid devices correctly</li>
+          <li>Fix a possible critical warning for Mediatek scaler devices</li>
+          <li>Fix Firehose padding for some modem-manager devices</li>
+          <li>Fix UEFI capsule updates when using 4096 byte NVME blocksize</li>
+          <li>Get the Dell dock update package version correctly</li>
+          <li>Never read more of the composite stream from a partial stream</li>
+          <li>Notify snapd about DBX updates</li>
+          <li>Probe sd_mod before starting</li>
+          <li>Properly handle FU_DEVICE_PRIVATE_FLAG_NO_GENERIC_GUIDS</li>
+          <li>Remove the test for CSME 18 manufacturing lock</li>
+          <li>Restore the Logitech compatibility UFY instance IDs</li>
+          <li>Show the correct version when installing a same-device composite update</li>
+          <li>Show updates with problems when using 'fwupdmgr get-releases'</li>
+          <li>Split up the AMD GPU VBIOS P/N for the version</li>
+          <li>Use attr USB4_TYPE rather than guessing from thunderbolt_domain</li>
+          <li>Use the ISO date as a dbx version number for the Microsoft KEK</li>
+          <li>Use the KEK to set the dbx vendor ID</li>
+        </ul>
+        <p>This release adds support for the following hardware:</p>
+        <ul>
+          <li>Fibocom NL668-EAU</li>
+          <li>HP 400/405 Peripheral</li>
+          <li>Lenovo USB-C 7-in-1 Dock</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.0.3" date="2024-12-06">
+      <description>
+        <p>
+          This release adds the following features:
+        </p>
+        <ul>
+          <li>Add a power quirk for Framework systems</li>
+          <li>Speed up writing firmware to the new Dell dock</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Deinitialize DRM after getting GPU marketing name to fix Xorg startup</li>
+          <li>Do not show 'Device has been removed' as a dock device error</li>
+          <li>Fix a warning about legion-hid2 progress going backwards</li>
+          <li>Fix some small memory leaks in realtek-mst and dell-kestrel</li>
+          <li>Only mark supported Logitech devices as updatable</li>
+          <li>Parse FDTs with missing END tokens to work on more ChromeBooks</li>
+          <li>Reduce the device emulation RSS requirement by ~40%</li>
+          <li>Skip checking BootXXXX entries when the partition does not exist</li>
+        </ul>
+        <p>This release adds support for the following hardware:</p>
+        <ul>
+          <li>Primax Ryder Mouse</li>
+        </ul>
+      </description>
+    </release>
+    <release version="2.0.2" date="2024-11-25">
+      <description>
+        <p>
+          This release adds the following features:
+        </p>
+        <ul>
+          <li>Add fwupdtool 'get-version-formats' and 'vercmp' commands</li>
+          <li>Add support for checking AMD HW configuration MSR</li>
+          <li>Add support for enumerate-only device emulation to increase test coverage</li>
+          <li>Add support for passing a JSON file for emulation instead of ZIP</li>
+          <li>Remove support for now-obsolete CSR DFU and Nitrokey devices</li>
+        </ul>
+        <p>This release fixes the following bugs:</p>
+        <ul>
+          <li>Add additional version checks for AMD Sinkclose</li>
+          <li>Check that getpid() returned a sensible value to detect minijail failure</li>
+          <li>Check the VLI USB3 firmware size before erasing</li>
+          <li>Correctly parse the ThunderBolt controller NVM</li>
+          <li>Disallow DBX updates on the Samsung Galaxy Book2 360</li>
+          <li>Do not create zero-sized archive entries when loading some ZIP files</li>
+          <li>Fix a critical warning when parsing a corrupt ELF file</li>
+          <li>Fix a small memory leak when checking algoltek-usb status</li>
+          <li>Fix a small memory leak when writing telink-dfu firmware</li>
+          <li>Fix eMMC probing regression in 2.0.x</li>
+          <li>Fix endianness parsing of msgpack float64</li>
+          <li>Fix failure to load the EFI DEVICE_PATH when there is no payload</li>
+          <li>Fix polkit message for emulation data collection</li>
+          <li>Fix sector erasing on Algoltek AG941x</li>
+          <li>Fix type confusion when saving emulation data</li>
+          <li>Fix UFS device feature discovery</li>
+          <li>Fix various device enumerations on s390x</li>
+          <li>Ignore LIBUSB_ERROR_NO_DEVICE when rebooting VIA VL103</li>
+          <li>Improve the algorithm for detecting multiple device-id matches</li>
+          <li>Mark all UEFI dbx updates as FWUPD_DEVICE_FLAG_AFFECTS_FDE</li>
+          <li>Only check for fwupdx64.efi when not using capsule-on-disk</li>
+          <li>Only set can-verify-image when CURRENT.UF2 exists</li>
+          <li>Parse install flags from apps compiled against old libfwupd versions</li>
+          <li>Repair the cros-ec device after flush failure</li>
+          <li>Reset the SteelSeries device only for certain models</li>
+          <li>Save the usb.ids and pci.ids name in the quirk database</li>
+          <li>Speed up decompressing large cab archives by 30%</li>
+          <li>Use a much more efficient method to calculate chunk sizes</li>
+        </ul>
+        <p>This release adds support for the following hardware:</p>
+        <ul>
+          <li>ASUS ROG ally and ROG ally X (initial support, community provided)</li>
+          <li>Google GID8 headset</li>
+          <li>j5create USB-C JCD373</li>
+          <li>Logitech Sight (as standalone device)</li>
+          <li>MNT Pocket Reform</li>
+          <li>Netprisma LCUR57 and FCUN69</li>
+          <li>Parade PS188</li>
+          <li>Quectel DFOTA devices</li>
+          <li>Raspberry Pi Pico</li>
+          <li>SteelSeries Nova 5</li>
+          <li>Telink DFU-HID devices</li>
+        </ul>
+      </description>
+    </release>
     <release version="2.0.1" date="2024-10-15">
       <description>
         <p>

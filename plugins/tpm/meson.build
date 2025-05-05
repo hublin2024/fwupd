@@ -1,9 +1,6 @@
-tpm2tss_tpm = dependency('tss2-esys', version: '>= 2.0', required: get_option('plugin_tpm'))
+tpm2tss_tpm = dependency('tss2-esys', version: '>= 2.0', required: false)
 
-if hsi and \
-   tpm2tss_tpm.found() and \
-   get_option('plugin_tpm').require(enable_udev,
-    error_message: 'udev is needed for plugin_tpm').allowed()
+if hsi and tpm2tss_tpm.found() and host_machine.system() == 'linux'
 cargs = ['-DG_LOG_DOMAIN="FuPluginTpm"']
 plugins += {meson.current_source_dir().split('/')[-1]: true}
 
@@ -37,7 +34,7 @@ if get_option('tests')
   env.set('G_TEST_BUILDDIR', meson.current_build_dir())
   env.set('FWUPD_LOCALSTATEDIR', '/tmp/fwupd-self-test/var')
   env.set('G_DEBUG', 'fatal-criticals')
-  env.set('LSAN_OPTIONS', 'suppressions=@0@'.format(join_paths(meson.current_source_dir(), 'lsan-suppressions.txt')))
+  env.set('LSAN_OPTIONS', 'suppressions=@0@'.format(join_paths(meson.project_source_root(), 'data', 'tests', 'lsan-suppressions.txt')))
   e = executable(
     'tpm-self-test',
     rustgen.process('fu-tpm.rs'),
@@ -54,12 +51,35 @@ if get_option('tests')
       fwupdplugin,
       plugin_builtin_tpm,
     ],
+    install: true,
+    install_rpath: libdir_pkg,
+    install_dir: installed_test_bindir,
     c_args: [
       cargs,
       '-DSRCDIR="' + meson.current_source_dir() + '"',
     ],
   )
   test('tpm-self-test', e, env: env)
+
+  install_data([
+      'tests/tpm0/active',
+      'tests/tpm0/caps',
+      'tests/tpm0/enabled',
+      'tests/tpm0/owned',
+      'tests/tpm0/pcrs',
+    ],
+    install_dir: join_paths(installed_test_datadir, 'tests', 'tpm0'),
+  )
+  install_data([
+      'tests/empty_pcr/tpm0/active',
+      'tests/empty_pcr/tpm0/caps',
+      'tests/empty_pcr/tpm0/enabled',
+      'tests/empty_pcr/tpm0/owned',
+      'tests/empty_pcr/tpm0/pcrs',
+    ],
+    install_dir: join_paths(installed_test_datadir, 'tests', 'empty_pcr', 'tpm0'),
+  )
+
 endif
 
 executable(

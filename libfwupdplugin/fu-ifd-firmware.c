@@ -126,7 +126,7 @@ fu_ifd_firmware_fixup_stream(GInputStream *stream, GError **error)
 static gboolean
 fu_ifd_firmware_parse(FuFirmware *firmware,
 		      GInputStream *stream,
-		      FwupdInstallFlags flags,
+		      FuFirmwareParseFlags flags,
 		      GError **error)
 {
 	FuIfdFirmware *self = FU_IFD_FIRMWARE(firmware);
@@ -223,8 +223,10 @@ fu_ifd_firmware_parse(FuFirmware *firmware,
 		/* create image */
 		g_debug("freg %s 0x%04x -> 0x%04x", freg_str, freg_base, freg_limt);
 		partial_stream = fu_partial_input_stream_new(stream2, freg_base, freg_size, error);
-		if (partial_stream == NULL)
+		if (partial_stream == NULL) {
+			g_prefix_error(error, "failed to cut IFD image: ");
 			return FALSE;
+		}
 		if (i == FU_IFD_REGION_BIOS) {
 			img = fu_ifd_bios_new();
 		} else {
@@ -233,7 +235,7 @@ fu_ifd_firmware_parse(FuFirmware *firmware,
 		if (!fu_firmware_parse_stream(img,
 					      partial_stream,
 					      0x0,
-					      flags | FWUPD_INSTALL_FLAG_NO_SEARCH,
+					      flags | FU_FIRMWARE_PARSE_FLAG_NO_SEARCH,
 					      error))
 			return FALSE;
 		fu_firmware_set_addr(img, freg_base);

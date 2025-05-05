@@ -91,7 +91,7 @@ fu_efi_device_path_set_subtype(FuEfiDevicePath *self, guint8 subtype)
 static gboolean
 fu_efi_device_path_parse(FuFirmware *firmware,
 			 GInputStream *stream,
-			 FwupdInstallFlags flags,
+			 FuFirmwareParseFlags flags,
 			 GError **error)
 {
 	FuEfiDevicePath *self = FU_EFI_DEVICE_PATH(firmware);
@@ -119,7 +119,7 @@ fu_efi_device_path_parse(FuFirmware *firmware,
 	if (!fu_input_stream_size(stream, &streamsz, error))
 		return FALSE;
 	dp_length = fu_struct_efi_device_path_get_length(st);
-	if (dp_length > streamsz) {
+	if (streamsz > 4 && dp_length > streamsz) {
 		dp_length = streamsz - 0x4;
 		g_debug("fixing up DP length from 0x%x to 0x%x, because of a bug in efiboot",
 			fu_struct_efi_device_path_get_length(st),

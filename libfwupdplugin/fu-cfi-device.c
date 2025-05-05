@@ -51,30 +51,6 @@ enum { PROP_0, PROP_FLASH_ID, PROP_LAST };
 #define FU_CFI_DEVICE_SECTOR_SIZE_DEFAULT 0x1000
 #define FU_CFI_DEVICE_BLOCK_SIZE_DEFAULT  0x10000
 
-static const gchar *
-fu_cfi_device_cmd_to_string(FuCfiDeviceCmd cmd)
-{
-	if (cmd == FU_CFI_DEVICE_CMD_READ_ID)
-		return "ReadId";
-	if (cmd == FU_CFI_DEVICE_CMD_PAGE_PROG)
-		return "PageProg";
-	if (cmd == FU_CFI_DEVICE_CMD_CHIP_ERASE)
-		return "ChipErase";
-	if (cmd == FU_CFI_DEVICE_CMD_READ_DATA)
-		return "ReadData";
-	if (cmd == FU_CFI_DEVICE_CMD_READ_STATUS)
-		return "ReadStatus";
-	if (cmd == FU_CFI_DEVICE_CMD_SECTOR_ERASE)
-		return "SectorErase";
-	if (cmd == FU_CFI_DEVICE_CMD_WRITE_EN)
-		return "WriteEn";
-	if (cmd == FU_CFI_DEVICE_CMD_WRITE_STATUS)
-		return "WriteStatus";
-	if (cmd == FU_CFI_DEVICE_CMD_BLOCK_ERASE)
-		return "BlockErase";
-	return NULL;
-}
-
 /**
  * fu_cfi_device_get_size:
  * @self: a #FuCfiDevice
@@ -949,6 +925,7 @@ static void
 fu_cfi_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");

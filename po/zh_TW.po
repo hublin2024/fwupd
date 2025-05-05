@@ -797,6 +797,10 @@ msgstr "韌體 BIOS 描述元"
 msgid "Firmware BIOS Region"
 msgstr "韌體 BIOS 領域"
 
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "韌體基礎 URI"
+
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
 msgstr "韌體更新 D-Bus 服務"
@@ -1603,15 +1607,6 @@ msgstr "將分支從 %s 切換到 %s？"
 #. TRANSLATORS: command description
 msgid "Switch the firmware branch on the device"
 msgstr "切換裝置上使用的韌體的分支"
-
-#. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "系統電量過低，無法執行更新"
-
-#. TRANSLATORS: as in laptop battery power
-#, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "系統電量過低，無法執行更新（%u%%，要求為 %u%%）"
 
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"

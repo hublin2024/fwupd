@@ -172,15 +172,15 @@ fu_msr_plugin_to_string(FuPlugin *plugin, guint idt, GString *str)
 		fwupd_codec_string_append_bool(str,
 					       idt,
 					       "Amd64SmmLock",
-					       self->amd64_hwcfg.fields.smm_locked);
+					       self->amd64_hwcfg.fields.smm_locked > 0);
 		fwupd_codec_string_append_bool(str,
 					       idt,
 					       "Amd64SmmPgCfgLock",
-					       self->amd64_hwcfg.fields.smm_pg_cfg_lock);
+					       self->amd64_hwcfg.fields.smm_pg_cfg_lock > 0);
 		fwupd_codec_string_append_bool(str,
 					       idt,
 					       "Amd64SmmBaseLock",
-					       self->amd64_hwcfg.fields.smm_base_lock);
+					       self->amd64_hwcfg.fields.smm_base_lock > 0);
 	}
 }
 
@@ -597,12 +597,15 @@ fu_msr_plugin_safe_kernel_for_sme(FuPlugin *plugin, GError **error)
 static gboolean
 fu_msr_plugin_kernel_enabled_sme(GError **error)
 {
-	g_autofree gchar *buf = NULL;
-	gsize bufsz = 0;
-	if (!g_file_get_contents("/proc/cpuinfo", &buf, &bufsz, error))
+	const gchar *flags;
+	g_autoptr(GHashTable) cpu_attrs = NULL;
+
+	cpu_attrs = fu_cpu_get_attrs(error);
+	if (cpu_attrs == NULL)
 		return FALSE;
-	if (bufsz > 0) {
-		g_auto(GStrv) tokens = fu_strsplit(buf, bufsz, " ", -1);
+	flags = g_hash_table_lookup(cpu_attrs, "flags");
+	if (flags != NULL) {
+		g_auto(GStrv) tokens = g_strsplit(flags, " ", -1);
 		for (guint i = 0; tokens[i] != NULL; i++) {
 			if (g_strcmp0(tokens[i], "sme") == 0)
 				return TRUE;
@@ -671,7 +674,9 @@ fu_msr_plugin_add_security_attr_amd_hwcr(FuPlugin *plugin, FuSecurityAttrs *attr
 {
 	FuMsrPlugin *self = FU_MSR_PLUGIN(plugin);
 	FuDevice *device = fu_plugin_cache_lookup(plugin, "cpu");
+	gboolean sinkclose_vuln = FALSE;
 	g_autoptr(FwupdSecurityAttr) attr1 = NULL;
+	g_auto(GStrv) mitigations = NULL;
 
 	/* this MSR is only valid for a subset of AMD CPUs */
 	if (fu_cpu_get_vendor() != FU_CPU_VENDOR_AMD)
@@ -681,6 +686,31 @@ fu_msr_plugin_add_security_attr_amd_hwcr(FuPlugin *plugin, FuSecurityAttrs *attr
 	if (!self->amd64_hwcfg_supported)
 		return;
 
+	if (device != NULL) {
+		const gchar *needed =
+		    fu_device_get_metadata(device, FU_DEVICE_METADATA_CPU_MITIGATIONS_REQUIRED);
+		if (needed != NULL)
+			mitigations = g_strsplit(needed, ",", -1);
+	}
+	if (mitigations != NULL) {
+		for (guint i = 0; mitigations[i] != NULL; i++) {
+			/* check for sinkclose vulnerability */
+			if (g_strcmp0(mitigations[i], "sinkclose") == 0) {
+				guint64 min = fu_device_get_metadata_integer(
+				    device,
+				    FU_DEVICE_METADATA_CPU_SINKCLOSE_MICROCODE_VER);
+				g_debug("microcode version: %" G_GUINT64_FORMAT
+					", sinkclose microcode version: %" G_GUINT64_FORMAT,
+					fu_device_get_version_raw(device),
+					min);
+				if (fu_device_get_version_raw(device) < min) {
+					g_info("vulnerable to sinkclose");
+					sinkclose_vuln = TRUE;
+				}
+				continue;
+			}
+		}
+	}
 	/* create attr */
 	attr1 = fu_plugin_security_attr_new(plugin, FWUPD_SECURITY_ATTR_ID_AMD_SMM_LOCKED);
 	if (device != NULL)
@@ -688,7 +718,11 @@ fu_msr_plugin_add_security_attr_amd_hwcr(FuPlugin *plugin, FuSecurityAttrs *attr
 	fwupd_security_attr_set_result_success(attr1, FWUPD_SECURITY_ATTR_RESULT_LOCKED);
 	fu_security_attrs_append(attrs, attr1);
 
-	if (!self->amd64_hwcfg.fields.smm_locked || !self->amd64_hwcfg.fields.smm_base_lock) {
+	if (sinkclose_vuln) {
+		fwupd_security_attr_set_result(attr1, FWUPD_SECURITY_ATTR_RESULT_NOT_VALID);
+		fwupd_security_attr_add_flag(attr1, FWUPD_SECURITY_ATTR_FLAG_RUNTIME_ISSUE);
+	} else if (!self->amd64_hwcfg.fields.smm_locked ||
+		   !self->amd64_hwcfg.fields.smm_base_lock) {
 		fwupd_security_attr_set_result(attr1, FWUPD_SECURITY_ATTR_RESULT_NOT_LOCKED);
 		fwupd_security_attr_add_flag(attr1, FWUPD_SECURITY_ATTR_FLAG_ACTION_CONTACT_OEM);
 	} else

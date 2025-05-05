@@ -50,7 +50,7 @@ fu_dell_kestrel_plugin_device_add(FuPlugin *plugin, FuDevice *device, GError **e
 	}
 
 	/* dock type according to ec */
-	dock_type = fu_dell_kestrel_ec_get_dock_type(ec_device);
+	dock_type = fu_dell_kestrel_ec_get_dock_type(FU_DELL_KESTREL_EC(ec_device));
 	if (dock_type == FU_DELL_DOCK_BASE_TYPE_UNKNOWN) {
 		g_set_error(error,
 			    FWUPD_ERROR,
@@ -88,7 +88,7 @@ fu_dell_kestrel_plugin_device_add(FuPlugin *plugin, FuDevice *device, GError **e
 			return FALSE;
 
 		fu_device_add_child(ec_device, FU_DEVICE(rmm_device));
-		fu_dell_kestrel_rmm_fix_version(FU_DEVICE(rmm_device));
+		fu_dell_kestrel_rmm_fix_version(rmm_device);
 
 		return TRUE;
 	}
@@ -137,16 +137,16 @@ fu_dell_kestrel_plugin_ec_add_cached_devices(FuPlugin *plugin, FuDevice *ec_devi
 	    {DELL_VID, DELL_KESTREL_USB_RTS0_G1_PID},
 	    {DELL_VID, DELL_KESTREL_USB_RTS0_G2_PID},
 	    {DELL_VID, DELL_KESTREL_USB_RTS5_G2_PID},
+	    {DELL_VID, DELL_KESTREL_USB_RMM_PID},
 	    {0},
 	};
 
 	for (guint i = 0; hw_dev_ids[i].pid != 0; i++) {
 		FuDevice *device;
-		const gchar *key;
+		g_autofree gchar *key = NULL;
 
 		key =
 		    g_strdup_printf("USB\\VID_%04X&PID_%04X", hw_dev_ids[i].vid, hw_dev_ids[i].pid);
-
 		device = fu_plugin_cache_lookup(plugin, key);
 		if (device != NULL) {
 			if (!(fu_dell_kestrel_plugin_device_add(plugin, device, error)))
@@ -233,12 +233,18 @@ fu_dell_kestrel_plugin_config_mst_dev(FuPlugin *plugin)
 
 	/* vmm8 */
 	mst_subtype = FU_DELL_KESTREL_EC_DEV_SUBTYPE_VMM8;
-	if (fu_dell_kestrel_ec_is_dev_present(device_ec, mst_devtype, mst_subtype, 0))
+	if (fu_dell_kestrel_ec_is_dev_present(FU_DELL_KESTREL_EC(device_ec),
+					      mst_devtype,
+					      mst_subtype,
+					      0))
 		devname = fu_dell_kestrel_ec_devicetype_to_str(mst_devtype, mst_subtype, 0);
 
 	/* vmm9 */
 	mst_subtype = FU_DELL_KESTREL_EC_DEV_SUBTYPE_VMM9;
-	if (fu_dell_kestrel_ec_is_dev_present(device_ec, mst_devtype, mst_subtype, 0))
+	if (fu_dell_kestrel_ec_is_dev_present(FU_DELL_KESTREL_EC(device_ec),
+					      mst_devtype,
+					      mst_subtype,
+					      0))
 		devname = fu_dell_kestrel_ec_devicetype_to_str(mst_devtype, mst_subtype, 0);
 
 	/* device name */
@@ -275,10 +281,6 @@ fu_dell_kestrel_plugin_config_parentship(FuPlugin *plugin)
 static void
 fu_dell_kestrel_plugin_device_registered(FuPlugin *plugin, FuDevice *device)
 {
-	/* usb device of interset */
-	if (!FU_IS_USB_DEVICE(device))
-		return;
-
 	/* leverage intel_usb4 for usb4 devices */
 	if (fu_device_has_guid(device, DELL_KESTREL_T4_DEVID) ||
 	    fu_device_has_guid(device, DELL_KESTREL_T5_DEVID)) {
@@ -290,9 +292,15 @@ fu_dell_kestrel_plugin_device_registered(FuPlugin *plugin, FuDevice *device)
 			fu_device_inhibit(device, "hidden", msg);
 			return;
 		}
+		/* activation should already done when device is added */
+		fu_device_remove_flag(device, FWUPD_DEVICE_FLAG_NEEDS_ACTIVATION);
 		fu_device_add_private_flag(device, FU_DEVICE_PRIVATE_FLAG_EXPLICIT_ORDER);
 		fu_plugin_cache_add(plugin, "usb4", device);
 	}
+
+	/* usb device of interset */
+	if (!FU_IS_USB_DEVICE(device))
+		return;
 
 	/* leverage synaptics_vmm9 plugin for the mst device */
 	if (fu_device_get_vid(device) == MST_VMM89_USB_VID &&
@@ -343,7 +351,7 @@ fu_dell_kestrel_plugin_composite_cleanup(FuPlugin *plugin, GPtrArray *devices, G
 		return FALSE;
 
 	/* release the dock */
-	if (!fu_dell_kestrel_ec_own_dock(ec_dev, FALSE, error))
+	if (!fu_dell_kestrel_ec_own_dock(FU_DELL_KESTREL_EC(ec_dev), FALSE, error))
 		return FALSE;
 
 	return TRUE;
@@ -370,13 +378,14 @@ fu_dell_kestrel_plugin_composite_prepare(FuPlugin *plugin, GPtrArray *devices, G
 		return FALSE;
 
 	/* own the dock */
-	if (!fu_dell_kestrel_ec_own_dock(ec_dev, TRUE, error))
+	if (!fu_dell_kestrel_ec_own_dock(FU_DELL_KESTREL_EC(ec_dev), TRUE, error))
 		return FALSE;
 
 	/* conditionally enable passive flow */
 	if (fu_plugin_get_config_value_boolean(plugin, FWUPD_DELL_KESTREL_PLUGIN_CONFIG_UOD)) {
 		if (fu_device_has_flag(ec_dev, FWUPD_DEVICE_FLAG_USABLE_DURING_UPDATE)) {
-			if (!fu_dell_kestrel_ec_run_passive_update(ec_dev, error))
+			if (!fu_dell_kestrel_ec_run_passive_update(FU_DELL_KESTREL_EC(ec_dev),
+								   error))
 				return FALSE;
 		}
 	}
@@ -403,6 +412,29 @@ fu_dell_kestrel_plugin_modify_config(FuPlugin *plugin,
 }
 
 static gboolean
+fu_dell_kestrel_plugin_backend_device_removed(FuPlugin *plugin, FuDevice *device, GError **error)
+{
+	const gchar *cache_keys[] = {"ec", "mst", "usb4"};
+	FuDevice *parent = fu_device_get_parent(device);
+
+	if (parent == NULL)
+		return TRUE;
+	if (!FU_IS_DELL_KESTREL_EC(parent))
+		return TRUE;
+
+	if (FU_IS_USB_DEVICE(device)) {
+		g_autofree gchar *key = g_strdup_printf("USB\\VID_%04X&PID_%04X",
+							fu_device_get_vid(device),
+							fu_device_get_pid(device));
+		fu_plugin_cache_remove(plugin, key);
+	}
+	for (gsize i = 0; i < G_N_ELEMENTS(cache_keys); i++)
+		fu_plugin_cache_remove(plugin, cache_keys[i]);
+
+	return TRUE;
+}
+
+static gboolean
 fu_dell_kestrel_plugin_prepare(FuPlugin *plugin,
 			       FuDevice *device,
 			       FuProgress *progress,
@@ -412,7 +444,10 @@ fu_dell_kestrel_plugin_prepare(FuPlugin *plugin,
 	/* usb4 device reboot is suppressed, let ec handle it in passive update */
 	if (fu_device_has_guid(device, DELL_KESTREL_T4_DEVID) ||
 	    fu_device_has_guid(device, DELL_KESTREL_T5_DEVID)) {
-		fu_device_add_private_flag(device, FU_DEVICE_PRIVATE_FLAG_SKIPS_RESTART);
+		/* uod requires needs-activate from intel-usb4 plugin */
+		if (fu_plugin_get_config_value_boolean(plugin,
+						       FWUPD_DELL_KESTREL_PLUGIN_CONFIG_UOD))
+			fu_device_add_private_flag(device, FU_DEVICE_PRIVATE_FLAG_SKIPS_RESTART);
 	}
 
 	return TRUE;
@@ -452,6 +487,7 @@ fu_dell_kestrel_plugin_class_init(FuDellKestrelPluginClass *klass)
 	plugin_class->constructed = fu_dell_kestrel_plugin_constructed;
 	plugin_class->device_registered = fu_dell_kestrel_plugin_device_registered;
 	plugin_class->backend_device_added = fu_dell_kestrel_plugin_backend_device_added;
+	plugin_class->backend_device_removed = fu_dell_kestrel_plugin_backend_device_removed;
 	plugin_class->composite_prepare = fu_dell_kestrel_plugin_composite_prepare;
 	plugin_class->composite_cleanup = fu_dell_kestrel_plugin_composite_cleanup;
 	plugin_class->modify_config = fu_dell_kestrel_plugin_modify_config;

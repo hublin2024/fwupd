@@ -28,6 +28,7 @@ client_dep = [
   libjsonglib,
   libxmlb,
   sqlite,
+  readline,
   fwupdplugin_rs_dep,
 ]
 if libsystemd.found()
@@ -43,6 +44,7 @@ fwupd_engine_src = [
   'fu-device-list.c',
   'fu-engine.c',
   'fu-engine-config.c',
+  'fu-engine-emulator.c',
   'fu-engine-helper.c',
   'fu-engine-request.c',
   'fu-history.c',
@@ -55,6 +57,7 @@ fwupd_engine_src = [
   'fu-remote.c',
   'fu-remote-list.c',
   'fu-security-attr-common.c',
+  'fu-uefi-backend.c',
   'fu-usb-backend.c',
   'fu-client.c',
   'fu-client-list.c',
@@ -63,7 +66,7 @@ fwupd_engine_src = [
 if giounix.found()
   fwupd_engine_src += 'fu-unix-seekable-input-stream.c'
 endif
-if enable_udev
+if host_machine.system() == 'linux'
   fwupd_engine_src += 'fu-udev-backend.c'
 endif
 if bluez.allowed()
@@ -370,4 +373,25 @@ if get_option('tests')
     ],
   )
   test('fu-self-test', e, is_parallel: false, timeout: 180, env: env)
+
+  if polkit.found()
+    e = executable(
+      'fu-polkit-test',
+      sources: [
+        'fu-polkit-test.c',
+        'fu-polkit-agent.c',
+      ],
+      include_directories: [
+        root_incdir,
+        fwupd_incdir,
+      ],
+      dependencies: [
+        libfwupd_deps,
+      ],
+      link_with: [
+        fwupd,
+      ],
+    )
+    test('fu-self-test', e, env: {'G_DEBUG': 'fatal-criticals'})
+  endif
 endif

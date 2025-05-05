@@ -588,10 +588,6 @@ msgstr "Annullato"
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "Impossibile applicare poiché l'aggiornamento dbx è già stato applicato."
 
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "Impossibile applicare gli aggiornamenti su supporti live"
-
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
 msgstr "Modificato"
@@ -1148,6 +1144,10 @@ msgstr "Descrittore BIOS firmware"
 #. TRANSLATORS: Title: SPI refers to the flash chip in the computer
 msgid "Firmware BIOS Region"
 msgstr "Regione BIOS firmware"
+
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "URI di base del firmware"
 
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
@@ -2774,10 +2774,6 @@ msgstr "[FILE SIG_FILE ID-REMOTO]"
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[FILENAME1] [FILENAME2]"
 msgstr "[NOMEFILE1] [NOMEFILE2]"
-
-#. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[MOTIVO]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SMBIOS-FILE|HWIDS-FILE]"

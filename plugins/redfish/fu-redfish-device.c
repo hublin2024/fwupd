@@ -255,8 +255,7 @@ fu_redfish_device_set_version_lenovo(FuRedfishDevice *self, const gchar *version
 		return FALSE;
 
 	/* split out milestone */
-	if (!fu_strtoull(out_build, &priv->milestone, 0, G_MAXUINT64, FU_INTEGER_BASE_10, error))
-		return FALSE;
+	priv->milestone = g_ascii_strtoull(out_build, NULL, 10); /* nocheck:blocked */
 
 	/* odd numbered builds are unsigned */
 	if (priv->milestone % 2 != 0) {
@@ -388,13 +387,68 @@ fu_redfish_device_smc_license_check(FuRedfishDevice *self)
 }
 
 static gboolean
+fu_redfish_device_probe_oem_hpe(FuRedfishDevice *self, JsonObject *json_object, GError **error)
+{
+	if (json_object_has_member(json_object, "DeviceClass")) {
+		const gchar *guid = json_object_get_string_member(json_object, "DeviceClass");
+		if (guid != NULL)
+			fu_device_add_instance_id(FU_DEVICE(self), guid);
+	}
+	if (json_object_has_member(json_object, "Targets")) {
+		JsonArray *json_array = json_object_get_array_member(json_object, "Targets");
+		for (guint i = 0; i < json_array_get_length(json_array); i++) {
+			const gchar *guid = json_array_get_string_element(json_array, i);
+			if (guid != NULL)
+				fu_device_add_instance_id(FU_DEVICE(self), guid);
+		}
+	}
+	return TRUE;
+}
+
+static gboolean
+fu_redfish_device_probe_oem_dell(FuRedfishDevice *self, JsonObject *json_object, GError **error)
+{
+	JsonObject *software_info;
+
+	/* ignore */
+	if (!json_object_has_member(json_object, "DellSoftwareInventory"))
+		return TRUE;
+	software_info = json_object_get_object_member(json_object, "DellSoftwareInventory");
+	if (json_object_has_member(software_info, "Status")) {
+		const gchar *status = json_object_get_string_member(software_info, "Status");
+		if (g_strcmp0(status, "AvailableForInstallation") == 0)
+			fu_device_add_private_flag(FU_DEVICE(self),
+						   FU_REDFISH_DEVICE_FLAG_IS_BACKUP);
+	}
+
+	/* it does not seem that Dell allows targeting a device when updating */
+	fu_device_add_private_flag(FU_DEVICE(self), FU_REDFISH_DEVICE_FLAG_WILDCARD_TARGETS);
+
+	/* SYSTEMID is set by the backend */
+	if (!fu_device_build_instance_id_full(FU_DEVICE(self),
+					      FU_DEVICE_INSTANCE_FLAG_QUIRKS,
+					      error,
+					      "REDFISH",
+					      "VENDOR",
+					      "SYSTEMID",
+					      NULL))
+		return FALSE;
+	return fu_device_build_instance_id(FU_DEVICE(self),
+					   error,
+					   "REDFISH",
+					   "VENDOR",
+					   "SYSTEMID",
+					   "SOFTWAREID",
+					   NULL);
+}
+
+static gboolean
 fu_redfish_device_probe(FuDevice *dev, GError **error)
 {
 	FuRedfishDevice *self = FU_REDFISH_DEVICE(dev);
 	FuRedfishDevicePrivate *priv = GET_PRIVATE(self);
 	JsonObject *member = priv->member;
-	const gchar *guid = NULL;
-	g_autofree gchar *guid_lower = NULL;
+	const gchar *software_id = NULL;
 
 	/* sanity check */
 	if (priv->member == NULL) {
@@ -417,34 +471,17 @@ fu_redfish_device_probe(FuDevice *dev, GError **error)
 		if (tmp != NULL)
 			fu_device_set_backend_id(dev, tmp);
 	}
-
-	/* get SoftwareId, falling back to vendor-specific versions */
-	if (json_object_has_member(member, "SoftwareId")) {
-		guid = json_object_get_string_member(member, "SoftwareId");
-	} else if (json_object_has_member(member, "Oem")) {
-		JsonObject *oem = json_object_get_object_member(member, "Oem");
-		if (oem != NULL && json_object_has_member(oem, "Hpe")) {
-			JsonObject *hpe = json_object_get_object_member(oem, "Hpe");
-			if (hpe != NULL && json_object_has_member(hpe, "DeviceClass"))
-				guid = json_object_get_string_member(hpe, "DeviceClass");
-		}
-	}
-
-	/* GUID is required */
-	if (guid == NULL) {
-		g_set_error_literal(error,
-				    FWUPD_ERROR,
-				    FWUPD_ERROR_NOT_FOUND,
-				    "no GUID for device");
-		return FALSE;
-	}
+	fu_device_add_instance_str(dev, "ID", fu_device_get_backend_id(dev));
 
 	/* device properties */
 	if (json_object_has_member(member, "Manufacturer")) {
 		const gchar *tmp = json_object_get_string_member(member, "Manufacturer");
 		if (tmp != NULL && tmp[0] != '\0')
 			fu_redfish_device_set_vendor(self, tmp);
+	} else {
+		fu_redfish_device_set_vendor(self, fu_redfish_backend_get_vendor(priv->backend));
 	}
+	fu_device_add_instance_strsafe(dev, "VENDOR", fu_device_get_vendor(dev));
 
 	/* the version can encode the instance ID suffix */
 	if (json_object_has_member(member, "Version")) {
@@ -456,7 +493,7 @@ fu_redfish_device_probe(FuDevice *dev, GError **error)
 	/* ReleaseDate may or may not have a timezone */
 	if (json_object_has_member(member, "ReleaseDate")) {
 		const gchar *tmp = json_object_get_string_member(member, "ReleaseDate");
-		if (tmp != NULL && tmp[0] != '\0') {
+		if (tmp != NULL && tmp[0] != '\0' && g_strcmp0(tmp, "00:00:00Z") != 0) {
 			g_autoptr(GDateTime) dt = NULL;
 			g_autoptr(GTimeZone) tz = g_time_zone_new_utc();
 			dt = g_date_time_new_from_iso8601(tmp, tz);
@@ -469,31 +506,50 @@ fu_redfish_device_probe(FuDevice *dev, GError **error)
 		}
 	}
 
-	/* add IDs */
-	fu_device_add_instance_strsafe(dev, "VENDOR", fu_device_get_vendor(dev));
-	fu_device_add_instance_str(dev, "SOFTWAREID", guid);
-	fu_device_add_instance_str(dev, "ID", fu_device_get_backend_id(dev));
-
 	/* some vendors use a GUID, others use an ID like BMC-AFBT-10 */
-	guid_lower = g_ascii_strdown(guid, -1);
-	if (fwupd_guid_is_valid(guid_lower)) {
-		fu_device_add_guid(dev, guid_lower);
-	} else {
-		if (fu_device_has_private_flag(dev, FU_REDFISH_DEVICE_FLAG_UNSIGNED_BUILD))
-			fu_device_add_instance_str(dev, "TYPE", "UNSIGNED");
+	if (json_object_has_member(member, "SoftwareId"))
+		software_id = json_object_get_string_member(member, "SoftwareId");
+	if (software_id != NULL) {
+		g_autofree gchar *software_id_lower = g_ascii_strdown(software_id, -1);
+		if (fwupd_guid_is_valid(software_id_lower)) {
+			fu_device_add_instance_id(dev, software_id_lower);
+		} else {
+			fu_device_add_instance_str(dev, "SOFTWAREID", software_id);
+			if (fu_device_has_private_flag(dev, FU_REDFISH_DEVICE_FLAG_UNSIGNED_BUILD))
+				fu_device_add_instance_str(dev, "TYPE", "UNSIGNED");
+			fu_device_build_instance_id(dev,
+						    NULL,
+						    "REDFISH",
+						    "VENDOR",
+						    "SOFTWAREID",
+						    "TYPE",
+						    NULL);
+		}
+	}
 
-		fu_device_build_instance_id(dev,
-					    NULL,
-					    "REDFISH",
-					    "VENDOR",
-					    "SOFTWAREID",
-					    "TYPE",
-					    NULL);
-		fu_device_build_instance_id(dev, NULL, "REDFISH", "VENDOR", "SOFTWAREID", NULL);
+	/* get vendor-specific properties too */
+	if (json_object_has_member(member, "Oem")) {
+		JsonObject *oem = json_object_get_object_member(member, "Oem");
+		if (oem != NULL && json_object_has_member(oem, "Hpe")) {
+			JsonObject *hpe = json_object_get_object_member(oem, "Hpe");
+			if (!fu_redfish_device_probe_oem_hpe(self, hpe, error))
+				return FALSE;
+		}
+		if (oem != NULL && json_object_has_member(oem, "Dell")) {
+			JsonObject *json_oem = json_object_get_object_member(oem, "Dell");
+			if (!fu_redfish_device_probe_oem_dell(self, json_oem, error))
+				return FALSE;
+		}
 	}
 
 	/* used for quirking and parenting */
-	fu_device_build_instance_id(dev, NULL, "REDFISH", "VENDOR", "ID", NULL);
+	fu_device_build_instance_id_full(dev,
+					 FU_DEVICE_INSTANCE_FLAG_QUIRKS,
+					 NULL,
+					 "REDFISH",
+					 "VENDOR",
+					 "ID",
+					 NULL);
 
 	if (json_object_has_member(member, "Name")) {
 		const gchar *tmp = json_object_get_string_member(member, "Name");
@@ -516,10 +572,16 @@ fu_redfish_device_probe(FuDevice *dev, GError **error)
 		if (json_object_get_boolean_member(member, "Updateable"))
 			fu_device_add_flag(dev, FWUPD_DEVICE_FLAG_UPDATABLE);
 	}
-	if (fu_device_has_private_flag(dev, FU_REDFISH_DEVICE_FLAG_IS_BACKUP))
-		fu_device_inhibit(dev, "is-backup", "Is a backup partition");
-	else
-		fu_device_uninhibit(dev, "is-backup");
+
+	/* not useful to export */
+	if (fu_device_has_private_flag(dev, FU_REDFISH_DEVICE_FLAG_IS_BACKUP)) {
+		g_set_error(error,
+			    FWUPD_ERROR,
+			    FWUPD_ERROR_NOT_SUPPORTED,
+			    "%s is a backup partition",
+			    fu_device_get_backend_id(dev));
+		return FALSE;
+	}
 
 	/* use related items to set extra instance IDs */
 	if (fu_device_has_flag(dev, FWUPD_DEVICE_FLAG_UPDATABLE) &&
@@ -553,99 +615,104 @@ fu_redfish_device_get_backend(FuRedfishDevice *self)
 }
 
 typedef struct {
-	FwupdError error_code;
 	gchar *location;
 	gboolean completed;
 	GHashTable *messages_seen;
 	FuProgress *progress;
 } FuRedfishDevicePollCtx;
 
-static void
-fu_redfish_device_poll_set_message_id(FuRedfishDevice *self,
-				      FuRedfishDevicePollCtx *ctx,
-				      const gchar *message_id)
+gboolean
+fu_redfish_device_parse_message_id(FuRedfishDevice *self,
+				   const gchar *message_id,
+				   const gchar *message,
+				   FuProgress *progress,
+				   GError **error)
 {
 	/* ignore */
 	if (g_pattern_match_simple("TaskEvent.*.TaskProgressChanged", message_id) ||
 	    g_pattern_match_simple("TaskEvent.*.TaskCompletedWarning", message_id) ||
 	    g_pattern_match_simple("TaskEvent.*.TaskCompletedOK", message_id) ||
 	    g_pattern_match_simple("Base.*.Success", message_id))
-		return;
+		return TRUE;
 
 	/* set flags */
 	if (g_pattern_match_simple("Base.*.ResetRequired", message_id)) {
 		fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_NEEDS_REBOOT);
-		return;
+		return TRUE;
 	}
 
 	/* set error code */
 	if (g_pattern_match_simple("Update.*.AwaitToActivate", message_id)) {
-		ctx->error_code = FWUPD_ERROR_NEEDS_USER_ACTION;
-		return;
+		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_NEEDS_USER_ACTION, message);
+		return FALSE;
 	}
 	if (g_pattern_match_simple("Update.*.TransferFailed", message_id)) {
-		ctx->error_code = FWUPD_ERROR_WRITE;
-		return;
+		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_WRITE, message);
+		return FALSE;
 	}
 	if (g_pattern_match_simple("Update.*.ActivateFailed", message_id)) {
-		ctx->error_code = FWUPD_ERROR_INVALID_FILE;
-		return;
+		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE, message);
+		return FALSE;
 	}
 	if (g_pattern_match_simple("Update.*.VerificationFailed", message_id) ||
 	    g_pattern_match_simple("LenovoFirmwareUpdateRegistry.*.UpdateVerifyFailed",
 				   message_id)) {
-		ctx->error_code = FWUPD_ERROR_INVALID_FILE;
-		return;
+		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE, message);
+		return FALSE;
 	}
-	if (g_pattern_match_simple("Update.*.ApplyFailed", message_id)) {
-		ctx->error_code = FWUPD_ERROR_WRITE;
-		return;
+	if (g_pattern_match_simple("Update.*.ApplyFailed", message_id) ||
+	    g_pattern_match_simple("iLO.*.UpdateFailed", message_id)) {
+		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_WRITE, message);
+		return FALSE;
 	}
 
 	/* set status */
 	if (g_pattern_match_simple("Update.*.TargetDetermined", message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_LOADING);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_LOADING);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("LenovoFirmwareUpdateRegistry.*.UpdateAssignment", message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_LOADING);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_LOADING);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("LenovoFirmwareUpdateRegistry.*.PayloadApplyInProgress",
 				   message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_DEVICE_WRITE);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_DEVICE_WRITE);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("LenovoFirmwareUpdateRegistry.*.PayloadApplyCompleted",
 				   message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_IDLE);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_IDLE);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("LenovoFirmwareUpdateRegistry.*.UpdateVerifyInProgress",
 				   message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_DEVICE_VERIFY);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_DEVICE_VERIFY);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("Update.*.TransferringToComponent", message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_LOADING);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_LOADING);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("Update.*.VerifyingAtComponent", message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_DEVICE_VERIFY);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_DEVICE_VERIFY);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("Update.*.UpdateInProgress", message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_DEVICE_WRITE);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_DEVICE_WRITE);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("Update.*.UpdateSuccessful", message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_IDLE);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_IDLE);
+		return TRUE;
 	}
 	if (g_pattern_match_simple("Update.*.InstallingOnComponent", message_id)) {
-		fu_progress_set_status(ctx->progress, FWUPD_STATUS_DEVICE_WRITE);
-		return;
+		fu_progress_set_status(progress, FWUPD_STATUS_DEVICE_WRITE);
+		return TRUE;
 	}
+
+	/* nothing to do */
+	return TRUE;
 }
 
 static gboolean
@@ -699,7 +766,12 @@ fu_redfish_device_poll_task_once(FuRedfishDevice *self, FuRedfishDevicePollCtx *
 
 			/* use the message */
 			g_debug("message #%u [%s]: %s", i, message_id, message);
-			fu_redfish_device_poll_set_message_id(self, ctx, message_id);
+			if (!fu_redfish_device_parse_message_id(self,
+								message_id,
+								message,
+								ctx->progress,
+								error))
+				return FALSE;
 		}
 	}
 
@@ -723,7 +795,7 @@ fu_redfish_device_poll_task_once(FuRedfishDevice *self, FuRedfishDevicePollCtx *
 	}
 	if (g_strcmp0(state_tmp, "Exception") == 0 ||
 	    g_strcmp0(state_tmp, "UserIntervention") == 0) {
-		g_set_error_literal(error, FWUPD_ERROR, ctx->error_code, message);
+		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_INTERNAL, message);
 		return FALSE;
 	}
 
@@ -737,7 +809,6 @@ fu_redfish_device_poll_ctx_new(FuProgress *progress, const gchar *location)
 	FuRedfishDevicePollCtx *ctx = g_new0(FuRedfishDevicePollCtx, 1);
 	ctx->messages_seen = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 	ctx->location = g_strdup(location);
-	ctx->error_code = FWUPD_ERROR_INTERNAL;
 	ctx->progress = g_object_ref(progress);
 	return ctx;
 }
@@ -771,8 +842,10 @@ fu_redfish_device_poll_task(FuRedfishDevice *self,
 		fu_device_sleep(FU_DEVICE(self), 1000); /* ms */
 		if (!fu_redfish_device_poll_task_once(self, ctx, error))
 			return FALSE;
-		if (ctx->completed)
+		if (ctx->completed) {
+			fu_progress_finished(progress);
 			return TRUE;
+		}
 	} while (g_timer_elapsed(timer, NULL) < timeout);
 
 	/* success */

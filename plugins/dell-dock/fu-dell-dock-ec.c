@@ -481,7 +481,8 @@ fu_dell_dock_ec_get_dock_info(FuDevice *device, GError **error)
 			   map->location == LOCATION_BASE && map->sub_type == 0) {
 			if (oldest_base_pd == 0 ||
 			    device_entry[i].version.version_32 < oldest_base_pd)
-				oldest_base_pd = GUINT32_TO_BE(device_entry[i].version.version_32);
+				oldest_base_pd = GUINT32_TO_BE(/* nocheck:blocked */
+							       device_entry[i].version.version_32);
 			g_debug("\tParsed version: %02x.%02x.%02x.%02x",
 				device_entry[i].version.version_8[0],
 				device_entry[i].version.version_8[1],
@@ -985,6 +986,7 @@ static void
 fu_dell_dock_ec_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
@@ -999,7 +1001,6 @@ fu_dell_dock_ec_init(FuDellDockEc *self)
 	fu_device_add_protocol(FU_DEVICE(self), "com.dell.dock");
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UPDATABLE);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_SIGNED_PAYLOAD);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_INHIBIT_CHILDREN);
 }
 
 static void

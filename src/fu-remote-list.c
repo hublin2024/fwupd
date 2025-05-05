@@ -119,7 +119,7 @@ fu_remote_list_fixup_inotify_error(GError **error)
 		g_prefix_error(error, "Could not initialize inotify, check %s: ", fn);
 		return;
 	}
-	wd = inotify_add_watch(fd, "/", 0);
+	wd = inotify_add_watch(fd, fn, IN_MODIFY);
 	if (wd < 0) {
 		if (errno == ENOSPC)
 			g_prefix_error(error, "No space for inotify, check %s: ", fn);
@@ -289,9 +289,7 @@ fu_remote_list_is_remote_origin_lvfs(FwupdRemote *remote)
 }
 
 static gboolean
-fu_remote_list_add_for_file(FuRemoteList *self,
-			    const gchar *filename,
-			    GError **error)
+fu_remote_list_add_for_file(FuRemoteList *self, const gchar *filename, GError **error)
 {
 	FwupdRemote *remote_tmp;
 	g_autofree gchar *remotesdir = NULL;
@@ -670,8 +668,10 @@ fu_remote_list_load_metainfos(XbBuilder *builder, GError **error)
 							 file,
 							 XB_BUILDER_SOURCE_FLAG_NONE,
 							 NULL,
-							 error))
+							 error)) {
+				fwupd_error_convert(error);
 				return FALSE;
+			}
 			xb_builder_import_source(builder, source);
 		}
 	}

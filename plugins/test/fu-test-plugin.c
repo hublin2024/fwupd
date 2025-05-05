@@ -21,7 +21,7 @@ fu_test_plugin_coldplug(FuPlugin *plugin, FuProgress *progress, GError **error)
 	g_autoptr(FuDevice) device = NULL;
 	device = fu_device_new(ctx);
 	fu_device_set_id(device, "FakeDevice");
-	fu_device_add_guid(device, "b585990a-003e-5270-89d5-3705a17f9a43");
+	fu_device_add_instance_id(device, "b585990a-003e-5270-89d5-3705a17f9a43");
 	fu_device_set_name(device, "Integrated_Webcam(TM)");
 	fu_device_add_icon(device, "preferences-desktop-keyboard");
 	fu_device_add_flag(device, FWUPD_DEVICE_FLAG_REQUIRE_AC);
@@ -60,7 +60,7 @@ fu_test_plugin_coldplug(FuPlugin *plugin, FuProgress *progress, GError **error)
 		fu_device_add_protocol(child1, "com.acme");
 		fu_device_set_physical_id(child1, "fake");
 		fu_device_set_logical_id(child1, "child1");
-		fu_device_add_guid(child1, "7fddead7-12b5-4fb9-9fa0-6d30305df755");
+		fu_device_add_instance_id(child1, "7fddead7-12b5-4fb9-9fa0-6d30305df755");
 		fu_device_set_name(child1, "Module1");
 		fu_device_set_version_format(child1, FWUPD_VERSION_FORMAT_PLAIN);
 		fu_device_set_version(child1, "1");
@@ -75,7 +75,7 @@ fu_test_plugin_coldplug(FuPlugin *plugin, FuProgress *progress, GError **error)
 		fu_device_add_protocol(child2, "com.acme");
 		fu_device_set_physical_id(child2, "fake");
 		fu_device_set_logical_id(child2, "child2");
-		fu_device_add_guid(child2, "b8fe6b45-8702-4bcd-8120-ef236caac76f");
+		fu_device_add_instance_id(child2, "b8fe6b45-8702-4bcd-8120-ef236caac76f");
 		fu_device_set_name(child2, "Module2");
 		fu_device_set_version_format(child2, FWUPD_VERSION_FORMAT_PLAIN);
 		fu_device_set_version(child2, "10");
@@ -180,7 +180,7 @@ fu_test_plugin_get_version(GBytes *blob_fw)
 static gboolean
 fu_test_plugin_write_firmware(FuPlugin *plugin,
 			      FuDevice *device,
-			      GInputStream *stream,
+			      FuFirmware *firmware,
 			      FuProgress *progress,
 			      FwupdInstallFlags flags,
 			      GError **error)
@@ -301,14 +301,10 @@ fu_test_plugin_write_firmware(FuPlugin *plugin,
 	} else if (fu_plugin_get_config_value_boolean(plugin, "NeedsReboot")) {
 		fu_device_add_flag(device, FWUPD_DEVICE_FLAG_NEEDS_REBOOT);
 	} else {
-		gsize streamsz = 0;
 		g_autofree gchar *ver = NULL;
 		g_autoptr(GBytes) blob_fw = NULL;
 
-		/* this should not be required! */
-		if (!fu_input_stream_size(stream, &streamsz, error))
-			return FALSE;
-		blob_fw = fu_input_stream_read_bytes(stream, 0, streamsz, NULL, error);
+		blob_fw = fu_firmware_get_bytes(firmware, error);
 		if (blob_fw == NULL)
 			return FALSE;
 		ver = fu_test_plugin_get_version(blob_fw);
@@ -329,6 +325,13 @@ fu_test_plugin_write_firmware(FuPlugin *plugin,
 	    !fu_device_get_metadata_boolean(device, "DoneAnotherWriteRequired")) {
 		fu_device_add_flag(device, FWUPD_DEVICE_FLAG_ANOTHER_WRITE_REQUIRED);
 		fu_device_set_metadata_boolean(device, "DoneAnotherWriteRequired", TRUE);
+	}
+
+	/* do this all over again */
+	if (fu_plugin_get_config_value_boolean(plugin, "InstallLoopRestart") &&
+	    !fu_device_get_metadata_boolean(device, "DoneInstallLoopRestart")) {
+		fu_device_add_private_flag(device, FU_DEVICE_PRIVATE_FLAG_INSTALL_LOOP_RESTART);
+		fu_device_set_metadata_boolean(device, "DoneInstallLoopRestart", TRUE);
 	}
 
 	/* for the self tests only */
@@ -378,6 +381,15 @@ fu_test_plugin_composite_cleanup(FuPlugin *plugin, GPtrArray *devices, GError **
 	return TRUE;
 }
 
+static gboolean
+fu_test_plugin_attach(FuPlugin *plugin, FuDevice *device, FuProgress *progress, GError **error)
+{
+	fu_device_set_metadata_integer(device,
+				       "nr-attach",
+				       fu_device_get_metadata_integer(device, "nr-attach") + 1);
+	return TRUE;
+}
+
 static void
 fu_test_plugin_init(FuTestPlugin *self)
 {
@@ -389,6 +401,7 @@ fu_test_plugin_constructed(GObject *obj)
 {
 	FuPlugin *plugin = FU_PLUGIN(obj);
 	fu_plugin_set_config_default(plugin, "AnotherWriteRequired", "false");
+	fu_plugin_set_config_default(plugin, "InstallLoopRestart", "false");
 	fu_plugin_set_config_default(plugin, "CompositeChild", "false");
 	fu_plugin_set_config_default(plugin, "DecompressDelay", "0");
 	fu_plugin_set_config_default(plugin, "NeedsActivation", "false");
@@ -422,6 +435,7 @@ fu_test_plugin_class_init(FuTestPluginClass *klass)
 	plugin_class->activate = fu_test_plugin_activate;
 	plugin_class->write_firmware = fu_test_plugin_write_firmware;
 	plugin_class->verify = fu_test_plugin_verify;
+	plugin_class->attach = fu_test_plugin_attach;
 	plugin_class->coldplug = fu_test_plugin_coldplug;
 	plugin_class->device_registered = fu_test_plugin_device_registered;
 	plugin_class->modify_config = fu_test_plugin_modify_config;

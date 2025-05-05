@@ -453,7 +453,7 @@ static FuFirmware *
 fu_algoltek_usbcr_device_prepare_firmware(FuDevice *device,
 					  GInputStream *stream,
 					  FuProgress *progress,
-					  FwupdInstallFlags flags,
+					  FuFirmwareParseFlags flags,
 					  GError **error)
 {
 	g_autoptr(FuFirmware) firmware = fu_algoltek_usbcr_firmware_new();
@@ -648,6 +648,7 @@ fu_algoltek_usbcr_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
@@ -668,6 +669,7 @@ fu_algoltek_usbcr_device_init(FuAlgoltekUsbcrDevice *self)
 	fu_device_add_protocol(FU_DEVICE(self), "com.algoltek.usbcr");
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UPDATABLE);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UNSIGNED_PAYLOAD);
+	fu_device_set_name(FU_DEVICE(self), "USB Card Reader");
 	fu_udev_device_add_open_flag(FU_UDEV_DEVICE(self), FU_IO_CHANNEL_OPEN_FLAG_READ);
 	fu_udev_device_add_open_flag(FU_UDEV_DEVICE(self), FU_IO_CHANNEL_OPEN_FLAG_SYNC);
 }

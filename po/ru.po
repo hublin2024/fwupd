@@ -386,10 +386,6 @@ msgstr "Отменено"
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "Не удалось применить, поскольку обновление dbx уже применено."
 
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "Не удалось применить обновления с портативного носителя"
-
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
 msgstr "Изменено"
@@ -709,6 +705,10 @@ msgstr "Имя файла источника"
 #. TRANSLATORS: user did not include a filename parameter
 msgid "Filename required"
 msgstr "Требуется имя файла"
+
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "База URI микропрограммы"
 
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"

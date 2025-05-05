@@ -307,7 +307,7 @@ fu_bcm57xx_device_read_firmware(FuDevice *device, FuProgress *progress, GError *
 	fw = fu_bcm57xx_device_dump_firmware(device, progress, error);
 	if (fw == NULL)
 		return NULL;
-	if (!fu_firmware_parse_bytes(firmware, fw, 0x0, FWUPD_INSTALL_FLAG_NO_SEARCH, error))
+	if (!fu_firmware_parse_bytes(firmware, fw, 0x0, FU_FIRMWARE_PARSE_FLAG_NO_SEARCH, error))
 		return NULL;
 
 	/* remove images that will contain user-data */
@@ -324,7 +324,7 @@ static FuFirmware *
 fu_bcm57xx_device_prepare_firmware(FuDevice *device,
 				   GInputStream *stream,
 				   FuProgress *progress,
-				   FwupdInstallFlags flags,
+				   FuFirmwareParseFlags flags,
 				   GError **error)
 {
 	guint dict_cnt = 0;
@@ -345,7 +345,7 @@ fu_bcm57xx_device_prepare_firmware(FuDevice *device,
 	}
 
 	/* for full NVRAM image, verify if correct device */
-	if ((flags & FWUPD_INSTALL_FLAG_IGNORE_VID_PID) == 0) {
+	if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_VID_PID) == 0) {
 		guint16 vid = fu_bcm57xx_firmware_get_vendor(FU_BCM57XX_FIRMWARE(firmware_tmp));
 		guint16 did = fu_bcm57xx_firmware_get_model(FU_BCM57XX_FIRMWARE(firmware_tmp));
 		if (vid != 0x0 && did != 0x0 &&
@@ -368,7 +368,11 @@ fu_bcm57xx_device_prepare_firmware(FuDevice *device,
 	fw_old = fu_bcm57xx_device_dump_firmware(device, progress, error);
 	if (fw_old == NULL)
 		return NULL;
-	if (!fu_firmware_parse_bytes(firmware, fw_old, 0x0, FWUPD_INSTALL_FLAG_NO_SEARCH, error)) {
+	if (!fu_firmware_parse_bytes(firmware,
+				     fw_old,
+				     0x0,
+				     FU_FIRMWARE_PARSE_FLAG_NO_SEARCH,
+				     error)) {
 		g_prefix_error(error, "failed to parse existing firmware: ");
 		return NULL;
 	}
@@ -513,7 +517,7 @@ fu_bcm57xx_device_setup(FuDevice *device, GError **error)
 	if (fwversion != 0x0) {
 		/* this is only set on the OSS firmware */
 		fu_device_set_version_format(device, FWUPD_VERSION_FORMAT_TRIPLET);
-		fu_device_set_version_raw(device, GUINT32_FROM_BE(fwversion));
+		fu_device_set_version_raw(device, GUINT32_FROM_BE(fwversion)); /* nocheck:blocked */
 		fu_device_set_branch(device, BCM_FW_BRANCH_OSS_FIRMWARE);
 	} else {
 		guint8 bufver[16] = {0x0};
@@ -527,7 +531,7 @@ fu_bcm57xx_device_setup(FuDevice *device, GError **error)
 						  sizeof(guint32),
 						  error))
 			return FALSE;
-		veraddr = GUINT32_FROM_BE(veraddr);
+		veraddr = GUINT32_FROM_BE(veraddr); /* nocheck:blocked */
 		if (veraddr > BCM_PHYS_ADDR_DEFAULT)
 			veraddr -= BCM_PHYS_ADDR_DEFAULT;
 		if (!fu_bcm57xx_device_nvram_read(self,
@@ -590,6 +594,7 @@ fu_bcm57xx_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 98, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");

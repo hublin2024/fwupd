@@ -20,6 +20,7 @@
 
 typedef struct {
 	const gchar *auth_method;
+	guint retries;
 } FuThunderboltDevicePrivate;
 
 #define TBT_NVM_RETRY_TIMEOUT		     200   /* ms */
@@ -28,6 +29,13 @@ typedef struct {
 G_DEFINE_TYPE_WITH_PRIVATE(FuThunderboltDevice, fu_thunderbolt_device, FU_TYPE_UDEV_DEVICE)
 
 #define GET_PRIVATE(o) (fu_thunderbolt_device_get_instance_private(o))
+
+void
+fu_thunderbolt_device_set_retries(FuThunderboltDevice *self, guint retries)
+{
+	FuThunderboltDevicePrivate *priv = GET_PRIVATE(self);
+	priv->retries = retries;
+}
 
 GFile *
 fu_thunderbolt_device_find_nvmem(FuThunderboltDevice *self, gboolean active, GError **error)
@@ -101,6 +109,7 @@ fu_thunderbolt_device_check_authorized(FuThunderboltDevice *self, GError **error
 gboolean
 fu_thunderbolt_device_get_version(FuThunderboltDevice *self, GError **error)
 {
+	FuThunderboltDevicePrivate *priv = GET_PRIVATE(self);
 	const gchar *devpath = fu_udev_device_get_sysfs_path(FU_UDEV_DEVICE(self));
 	guint64 version_major = 0;
 	guint64 version_minor = 0;
@@ -118,7 +127,7 @@ fu_thunderbolt_device_get_version(FuThunderboltDevice *self, GError **error)
 		return FALSE;
 	}
 
-	for (guint i = 0; i < 50; i++) {
+	for (guint i = 0; i < priv->retries; i++) {
 		g_autoptr(GError) error_local = NULL;
 		/* glib can't return a properly mapped -ENODATA but the
 		 * kernel only returns -ENODATA or -EAGAIN */
@@ -316,7 +325,7 @@ static FuFirmware *
 fu_thunderbolt_device_prepare_firmware(FuDevice *device,
 				       GInputStream *stream,
 				       FuProgress *progress,
-				       FwupdInstallFlags flags,
+				       FuFirmwareParseFlags flags,
 				       GError **error)
 {
 	FuThunderboltDevice *self = FU_THUNDERBOLT_DEVICE(device);
@@ -437,6 +446,7 @@ static void
 fu_thunderbolt_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
@@ -448,6 +458,7 @@ fu_thunderbolt_device_init(FuThunderboltDevice *self)
 {
 	FuThunderboltDevicePrivate *priv = GET_PRIVATE(self);
 	priv->auth_method = "nvm_authenticate";
+	priv->retries = 50;
 	fu_device_add_icon(FU_DEVICE(self), "thunderbolt");
 	fu_device_add_protocol(FU_DEVICE(self), "com.intel.thunderbolt");
 }

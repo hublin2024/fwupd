@@ -37,11 +37,12 @@ fu_logitech_hidpp_runtime_bolt_detach(FuDevice *device, FuProgress *progress, GE
 	msg->data[6] = 'E';
 	msg->hidpp_version = 1;
 	msg->flags = FU_LOGITECH_HIDPP_HIDPP_MSG_FLAG_LONGER_TIMEOUT;
-	if (!fu_logitech_hidpp_send(fu_udev_device_get_io_channel(FU_UDEV_DEVICE(self)),
+	if (!fu_logitech_hidpp_send(FU_UDEV_DEVICE(self),
 				    msg,
 				    FU_LOGITECH_HIDPP_DEVICE_TIMEOUT_MS,
 				    &error_local)) {
-		if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_WRITE)) {
+		if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_WRITE) ||
+		    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_FOUND)) {
 			g_debug("failed to detach to bootloader: %s", error_local->message);
 		} else {
 			g_prefix_error(&error_local, "failed to detach to bootloader: ");
@@ -91,9 +92,7 @@ fu_logitech_hidpp_runtime_bolt_query_device_name(FuLogitechHidppRuntime *self,
 	msg->data[0] = 0x60 | slot; /* device name */
 	msg->data[1] = 1;
 	msg->hidpp_version = 1;
-	if (!fu_logitech_hidpp_transfer(fu_udev_device_get_io_channel(FU_UDEV_DEVICE(self)),
-					msg,
-					error)) {
+	if (!fu_logitech_hidpp_transfer(FU_UDEV_DEVICE(self), msg, error)) {
 		g_prefix_error(error, "failed to retrieve the device name for slot %d: ", slot);
 		return NULL;
 	}
@@ -157,6 +156,8 @@ fu_logitech_hidpp_runtime_bolt_update_paired_device(FuLogitechHidppRuntimeBolt *
 		fu_device_set_name(FU_DEVICE(child), name);
 		fu_logitech_hidpp_device_set_device_idx(child, msg->device_id);
 		fu_logitech_hidpp_device_set_hidpp_pid(child, hidpp_pid);
+		if (!fu_device_open(FU_DEVICE(child), error))
+			return FALSE;
 		if (!fu_device_probe(FU_DEVICE(child), error))
 			return FALSE;
 		if (!fu_device_setup(FU_DEVICE(child), error))
@@ -196,9 +197,7 @@ fu_logitech_hidpp_runtime_bolt_poll_peripherals(FuDevice *device)
 		msg->function_id = BOLT_REGISTER_PAIRING_INFORMATION;
 		msg->data[0] = 0x50 | i; /* pairing information */
 		msg->hidpp_version = 1;
-		if (!fu_logitech_hidpp_transfer(fu_udev_device_get_io_channel(FU_UDEV_DEVICE(self)),
-						msg,
-						&error_local))
+		if (!fu_logitech_hidpp_transfer(FU_UDEV_DEVICE(self), msg, &error_local))
 			continue;
 		hidpp_pid = (msg->data[2] << 8) | msg->data[3];
 		if ((msg->data[1] & 0x40) == 0) {
@@ -211,6 +210,8 @@ fu_logitech_hidpp_runtime_bolt_poll_peripherals(FuDevice *device)
 			fu_device_set_name(FU_DEVICE(child), name);
 			fu_logitech_hidpp_device_set_device_idx(child, i);
 			fu_logitech_hidpp_device_set_hidpp_pid(child, hidpp_pid);
+			if (!fu_device_open(FU_DEVICE(child), &error_local))
+				continue;
 			if (!fu_device_probe(FU_DEVICE(child), &error_local))
 				continue;
 			if (!fu_device_setup(FU_DEVICE(child), &error_local))
@@ -285,17 +286,20 @@ fu_logitech_hidpp_runtime_bolt_poll(FuDevice *device, GError **error)
 		return FALSE;
 
 	/* drain all the pending messages into the array */
-	while (TRUE) {
+	for (guint i = 0; i < 50; i++) {
 		g_autoptr(FuLogitechHidppHidppMsg) msg = fu_logitech_hidpp_msg_new();
 		g_autoptr(GError) error_local = NULL;
 		msg->hidpp_version = 1;
-		if (!fu_logitech_hidpp_receive(
-			fu_udev_device_get_io_channel(FU_UDEV_DEVICE(runtime)),
-			msg,
-			timeout,
-			&error_local)) {
+		if (!fu_logitech_hidpp_receive(FU_UDEV_DEVICE(runtime),
+					       msg,
+					       timeout,
+					       &error_local)) {
 			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_TIMED_OUT))
 				break;
+			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_FOUND)) {
+				g_debug("ignoring: %s", error_local->message);
+				break;
+			}
 			g_propagate_prefixed_error(error,
 						   g_steal_pointer(&error_local),
 						   "error polling Bolt receiver: ");
@@ -341,9 +345,7 @@ fu_logitech_hidpp_runtime_bolt_setup_internal(FuDevice *device, GError **error)
 	msg->function_id = BOLT_REGISTER_PAIRING_INFORMATION;
 	msg->data[0] = 0x02; /* FW Version (contains the number of pairing slots) */
 	msg->hidpp_version = 1;
-	if (!fu_logitech_hidpp_transfer(fu_udev_device_get_io_channel(FU_UDEV_DEVICE(self)),
-					msg,
-					error)) {
+	if (!fu_logitech_hidpp_transfer(FU_UDEV_DEVICE(self), msg, error)) {
 		g_prefix_error(error, "failed to fetch the number of pairing slots: ");
 		return FALSE;
 	}
@@ -365,9 +367,7 @@ fu_logitech_hidpp_runtime_bolt_setup_internal(FuDevice *device, GError **error)
 		msg->function_id = BOLT_REGISTER_RECEIVER_FW_INFORMATION;
 		msg->data[0] = i;
 		msg->hidpp_version = 1;
-		if (!fu_logitech_hidpp_transfer(fu_udev_device_get_io_channel(FU_UDEV_DEVICE(self)),
-						msg,
-						error)) {
+		if (!fu_logitech_hidpp_transfer(FU_UDEV_DEVICE(self), msg, error)) {
 			g_prefix_error(error, "failed to read device config: ");
 			return FALSE;
 		}

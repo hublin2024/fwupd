@@ -74,9 +74,9 @@ struct FuStructEfiSectionCompression {
 
 #[derive(ToString)]
 enum FuEfiLz77DecompressorVersion {
-    None = 0,
-    Legacy = 1,
-    Tiano = 2,
+    None,
+    Legacy,
+    Tiano,
 }
 
 #[derive(ParseStream)]
@@ -183,6 +183,37 @@ struct FuStructEfiVolumeBlockMap {
     length: u32le,
 }
 
+#[repr(C, packed)]
+struct FuStructEfiTime {
+    year: u16le,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+    _pad1: u8,
+    nanosecond: u32le,
+    timezone: u16le,
+    daylight: u8,
+    _pad2: u8,
+}
+
+#[derive(Default, Setters)]
+#[repr(C, packed)]
+struct FuStructEfiWinCertificate {
+    length: u32le = $struct_size,
+    revision: u16le == 0x0200,
+    certificate_type: u16le == 0x0EF1,
+    guid: Guid == "4aafd29d-68df-49ee-8aa9-347d375665a7",
+}
+
+#[derive(New, ParseStream, ValidateStream)]
+#[repr(C, packed)]
+struct FuStructEfiVariableAuthentication2 {
+    timestamp: FuStructEfiTime,
+    auth_info: FuStructEfiWinCertificate,
+}
+
 #[derive(New, ParseStream)]
 #[repr(C, packed)]
 struct FuStructEfiSignatureList {
@@ -200,6 +231,14 @@ enum FuEfiLoadOptionAttrs {
     Category = 0x1F00,
     CategoryBoot = 0x0,
     CategoryAp = 0x100,
+}
+
+#[derive(ToString, FromString)]
+enum FuEfiLoadOptionKind {
+    Unknown,
+    Path,
+    Hive,
+    Data,
 }
 
 #[derive(ParseStream, New)]

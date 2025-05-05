@@ -3,7 +3,7 @@
 # This file is distributed under the same license as the fwupd package.
 #
 # Translators:
-# Martin Srebotnjak <miles@filmsi.net>, 2021,2024
+# Martin Srebotnjak <miles@filmsi.net>, 2021,2024-2025
 msgid ""
 msgstr ""
 "Project-Id-Version: fwupd\n"
@@ -122,6 +122,16 @@ msgstr "Posodobitev GPE %s"
 #, c-format
 msgid "%s Graphics Tablet Update"
 msgstr "Posodobitev grafične tablice %s"
+
+#. TRANSLATORS: two miniature speakers attached to your ears
+#, c-format
+msgid "%s Headphones Update"
+msgstr "Posodobitev slušalk %s"
+
+#. TRANSLATORS: headphones with an integrated microphone
+#, c-format
+msgid "%s Headset Update"
+msgstr "Posodobitev slušalk z mikrofonom %s"
 
 #. TRANSLATORS: an input device used by gamers, e.g. a joystick
 #, c-format
@@ -327,6 +337,15 @@ msgstr[1] "%u s"
 msgstr[2] "%u s"
 msgstr[3] "%u s"
 
+#. TRANSLATORS: device tests can be specific to a CPU type
+#, c-format
+msgid "%u test was skipped"
+msgid_plural "%u tests were skipped"
+msgstr[0] "%u  preizkusov je preskočenih"
+msgstr[1] "%u  preizkus je preskočen"
+msgstr[2] "%u  preizkusa sta preskočena"
+msgstr[3] "%u preizkusi so preskočeni"
+
 #. TRANSLATORS: first percentage is current value, 2nd percentage is the
 #. * lowest limit the firmware update is allowed for the update to happen
 #, c-format
@@ -427,6 +446,10 @@ msgstr "Dovoli vnovično namestitev obstoječih različic vdelane programske opr
 msgid "Allow switching firmware branch"
 msgstr "Dovoli preklapljanje veje vdelane programske opreme"
 
+#. TRANSLATORS: error message
+msgid "Already exists, and no --force specified"
+msgstr "Že obstaja, parameter --force ni naveden"
+
 #. TRANSLATORS: is not the main firmware stream
 msgid "Alternate branch"
 msgstr "Nadomestna veja"
@@ -493,8 +516,16 @@ msgid "Authentication is required to downgrade the firmware on this machine"
 msgstr "Preverjanje pristnosti je potrebno za vrnitev na starejšo različico vdelane programske opreme v tem računalniku"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to enable emulation data collection"
+msgstr "Za omogočanje zbiranja podatkov emulacije strojne opreme je potrebno preverjanje pristnosti"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to fix a host security issue"
 msgstr "Preverjanje pristnosti je potrebno za odpravljanje težave z varnostjo gostitelja"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to load hardware emulation data"
+msgstr "Za nalaganje podatkov emulacije strojne opreme je potrebno preverjanje pristnosti"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to modify BIOS settings"
@@ -517,12 +548,20 @@ msgid "Authentication is required to reset daemon configuration to defaults"
 msgstr "Za spreminjanje prilagoditve prikritega procesa na privzeto je potrebno preverjanje pristnosti"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to save hardware emulation data"
+msgstr "Za shranjevanje podatkov emulacije strojne opreme je potrebno preverjanje pristnosti"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to set the list of approved firmware"
 msgstr "Preverjanje pristnosti je potrebno za nastavitev seznama odobrene vdelane programske opreme"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to sign data using the client certificate"
 msgstr "Preverjanje pristnosti je potrebno za podpisovanje podatkov s potrdilom odjemalca"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to stop the firmware update service"
+msgstr "Preverjanje pristnosti je potrebno za ustavitev storitve posodabljanja strojno programske opreme"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to switch to the new firmware version"
@@ -551,6 +590,11 @@ msgstr "Preverjanje pristnosti je potrebno za posodobitev shranjenih kontrolnih 
 #. TRANSLATORS: Boolean value to automatically send reports
 msgid "Automatic Reporting"
 msgstr "Samodejno poročanje"
+
+#. TRANSLATORS: we can auto-uninhibit after a timeout
+#, c-format
+msgid "Automatically uninhibiting in %ums…"
+msgstr "Samodejno sproščanje sistema čez %u ms ..."
 
 #. TRANSLATORS: can we JFDI?
 msgid "Automatically upload every time?"
@@ -634,6 +678,10 @@ msgstr "Platforma CET"
 msgid "CPU Microcode must be updated to mitigate against various information-disclosure security issues."
 msgstr "Mikrokodo CPE je treba posodobiti, da se ublažijo različna varnostna vprašanja razkritja informacij."
 
+#. TRANSLATORS: we can save all device enumeration events for emulation
+msgid "Can tag for emulation"
+msgstr "Lahko označite za emulacijo"
+
 #. TRANSLATORS: this is to abort the interactive prompt
 msgid "Cancel"
 msgstr "Prekliči"
@@ -646,10 +694,6 @@ msgstr "Preklicano"
 #. TRANSLATORS: same or newer update already applied
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "Ni možno uveljaviti, ker je bila posodobitev dbx že uveljavljena."
-
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "Posodobitev ni možno uveljaviti na predstavnosti v živo"
 
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
@@ -697,6 +741,10 @@ msgstr "Ukaz ni mogoče najti"
 msgid "Community supported"
 msgstr "Podprto s strani skupnosti"
 
+#. TRANSLATORS: command description
+msgid "Compares two versions for equality"
+msgstr "Primerja dve različici, če sta enaki"
+
 #. TRANSLATORS: title prefix for the BIOS settings dialog
 msgid "Configuration Change Suggested"
 msgstr "Predlagana sprememba konfiguracije"
@@ -716,6 +764,10 @@ msgstr "Tehnologija nadzora in nadzora pretoka"
 #. TRANSLATORS: command description
 msgid "Convert a firmware file"
 msgstr "Pretvori datoteko vdelane programske opreme"
+
+#. TRANSLATORS: command description
+msgid "Create an EFI boot entry"
+msgstr "Ustvari zagonski vnos za EFI"
 
 #. TRANSLATORS: when the update was built
 msgid "Created"
@@ -748,6 +800,10 @@ msgstr "Možnosti razhroščevanja"
 #. TRANSLATORS: decompressing the firmware file
 msgid "Decompressing…"
 msgstr "Razširjanje ..."
+
+#. TRANSLATORS: command description
+msgid "Delete an EFI boot entry"
+msgstr "Izbriše zagonski vnos za EFI"
 
 #. TRANSLATORS: description of BIOS setting
 #. TRANSLATORS: multiline description of device
@@ -1002,6 +1058,11 @@ msgstr "Ne piši v zbirko podatkov zgodovine"
 msgid "Do you understand the consequences of changing the firmware branch?"
 msgstr "Ali razumete posledice spremembe veje vdelane programske opreme?"
 
+#. TRANSLATORS: ask the user if it's okay to convert,
+#. * "it" being the data contained in the EFI boot entry
+msgid "Do you want to convert it now?"
+msgstr "Ali ga želite zdaj pretvoriti?"
+
 #. TRANSLATORS: offer to disable this nag
 msgid "Do you want to disable this feature for future updates?"
 msgstr "Ali želite onemogočiti to funkcijo za prihodnje posodobitve?"
@@ -1071,6 +1132,9 @@ msgstr "Emulirani gostitelj"
 
 msgid "Enable"
 msgstr "Omogoči"
+
+msgid "Enable emulation data collection"
+msgstr "Omogoči zbiranje podatkov emulacije"
 
 #. TRANSLATORS: a remote here is like a 'repo' or software source
 msgid "Enable new remote?"
@@ -1307,6 +1371,10 @@ msgstr "Področje BIOS-a vdelane programske opreme"
 msgid "Firmware BIOS Region protects device firmware memory from being tampered with."
 msgstr "Firmware BIOS Region ščiti pomnilnik vdelane programske opreme naprave pred nedovoljenimi posegi."
 
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "Osnovni URI vdelane programske opreme"
+
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
 msgstr "Storitev D-Bus posodobitve vdelane programske opreme"
@@ -1446,6 +1514,10 @@ msgid "Get all enabled plugins registered with the system"
 msgstr "Pridobi vse omogočene vstavke, registrirane v sistemu"
 
 #. TRANSLATORS: command description
+msgid "Get all known version formats"
+msgstr "Pridobi vse znane oblike različic"
+
+#. TRANSLATORS: command description
 msgid "Get device report metadata"
 msgstr "Pridobi metapodatke poročila o napravi"
 
@@ -1509,6 +1581,22 @@ msgstr "Atributi varnostnega ID-ja gostitelja so bili uspešno naloženi, hvala!
 #. TRANSLATORS: this is a string like 'HSI:2-U'
 msgid "Host Security ID:"
 msgstr "Varnostni ID gostitelja:"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX"
+msgstr "INDEKS"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX KEY [VALUE]"
+msgstr "INDEKS KLJUČ [VREDNOST]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "INDEKS IME CILJ  [TOČKAPRIKLOPA]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX1,INDEX2"
+msgstr "INDEKS1,INDEKS2"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "INHIBIT-ID"
@@ -1732,6 +1820,14 @@ msgstr "Neveljavni argumenti"
 msgid "Invalid arguments, expected GUID"
 msgstr "Neveljavni argumenti, pričakovan GUID"
 
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX KEY [VALUE]"
+msgstr "Neveljavni argumenti, pričakovano je INDEKS KLJUČ [VREDNOST]"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "Neveljavni argumenti, pričakovano je INDEKS IME CILJ [TOČKAPRIKLOPA]"
+
 #. TRANSLATOR: This is the error message for
 #. * incorrect parameter
 msgid "Invalid arguments, expected an AppStream ID"
@@ -1740,6 +1836,10 @@ msgstr "Neveljavni argumenti, pričakovan je ID AppStream"
 #. TRANSLATORS: error message
 msgid "Invalid arguments, expected at least ARCHIVE FIRMWARE METAINFO"
 msgstr "Neveljavni argumenti, pričakovani vsaj ARHIV VDELANAPROGRAMSKAOPREMA METAPODATKI"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected base-16 integer"
+msgstr "Neveljavni argumenti, pričakovano je celo število base-16"
 
 #. TRANSLATORS: version is older
 msgid "Is downgrade"
@@ -2045,6 +2145,11 @@ msgstr "Posodobitve niso na voljo"
 
 msgid "No updates available for remaining devices"
 msgstr "Za preostale naprave ni na voljo nobenih posodobitev"
+
+#. TRANSLATORS: error message
+#, c-format
+msgid "No volume matched %s"
+msgstr "Noben pogon se ne ujema s/z %s"
 
 #. TRANSLATORS: version cannot be installed due to policy
 msgid "Not approved"
@@ -2412,6 +2517,10 @@ msgstr "NASTAVITEV1 VREDNOST1 [NASTAVITEV2] [VREDNOST2]"
 msgid "SMAP"
 msgstr "SMAP"
 
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "SMM locked down"
+msgstr "SMM (NUS) zaklenjen"
+
 #. TRANSLATORS: Title: SPI refers to the flash chip in the computer
 msgid "SPI BIOS Descriptor"
 msgstr "Deskriptor SPI BIOS-a"
@@ -2504,6 +2613,18 @@ msgstr "Določite nastavitev BIOS-a"
 
 msgid "Set one or more BIOS settings"
 msgstr "Nastavite eno ali več nastavitev BIOS-a"
+
+#. TRANSLATORS: command description
+msgid "Set or remove an EFI boot hive entry"
+msgstr "Nastavite ali odstranite zagonski vnos satovja za EFI"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot next"
+msgstr "Nadalje nastavite zagon EFI"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot order"
+msgstr "Nastavite zaporedje zagona EFI"
 
 #. TRANSLATORS: command line option
 msgid "Set the download retries for transient errors"
@@ -2607,6 +2728,9 @@ msgstr "Vir"
 #. TRANSLATORS: command line option
 msgid "Specify the dbx database file"
 msgstr "Določite datoteko zbirke podatkov dbx"
+
+msgid "Stop the fwupd service"
+msgstr "Ustavi storitev fwupd"
 
 #. TRANSLATORS: The BIOS setting accepts strings
 msgid "String"
@@ -2755,18 +2879,26 @@ msgstr "Preklopite vejo vdelane programske opreme na napravi"
 msgid "Sync firmware versions to the chosen configuration"
 msgstr "Sinhronizirajte različice vdelane programske opreme z izbrano konfiguracijo"
 
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "System Management Mode"
+msgstr "Način upravljanja sistema"
+
 #. TRANSLATORS: this CLI tool is now preventing system updates
 msgid "System Update Inhibited"
 msgstr "Posodobitev sistema je preprečena"
 
+#. TRANSLATORS: longer description
+msgid "System management mode is used by the firmware to access resident BIOS code and data."
+msgstr "Način upravljanja sistema uporablja programje strojne opreme za dostop do kode in podatkov rezidenčnega BIOS-a."
+
 #. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "Napolnjenost baterije je prenizka za izvedbo posodobitve"
+msgid "System power is too low"
+msgstr "Napolnjenost sistemske baterije je prenizka"
 
 #. TRANSLATORS: as in laptop battery power
 #, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "Napolnjenost baterije je prenizka za izvedbo posodobitve (%u %%, zahtevano je vsaj %u %%)"
+msgid "System power is too low (%u%%, requires %u%%)"
+msgstr "Napolnjenost sistemske baterije je prenizka (%u %%, potrebnih je %u %%)"
 
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"
@@ -2846,6 +2978,14 @@ msgstr "Preizkušeno s strani %s"
 #. TRANSLATORS: someone we trust has tested this
 msgid "Tested by trusted vendor"
 msgstr "Preizkušeno s strani zaupanja vrednega proizvajalca"
+
+#. TRANSLATORS: the boot entry was in a legacy format
+msgid "The EFI boot entry is not in hive format, and shim may not be new enough to read it."
+msgstr "Zagonski vnos za EFI ni v obliki satovja, povezovalni element morda ni dovolj nov, da bi ga lahko prebral."
+
+#. TRANSLATORS: try to treat the legacy format as a hive
+msgid "The EFI boot entry was not in hive format, falling back"
+msgstr "Zagonski vnos za EFI ni v obliki satovja, povrnitev v prejšnje stanje"
 
 #. TRANSLATORS: longer description
 msgid "The Intel Management Engine Key Manifest must be valid so that the device firmware can be trusted by the CPU."
@@ -3247,6 +3387,10 @@ msgstr "Uporabnik je bil obveščen"
 msgid "Username"
 msgstr "Uporabniško ime"
 
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "VERSION1 VERSION2 [FORMAT]"
+msgstr "VERSION1 VERSION2 [FORMAT]"
+
 #. TRANSLATORS: Suffix: the HSI result
 msgid "Valid"
 msgstr "Veljavno"
@@ -3361,8 +3505,8 @@ msgid "[FILENAME1] [FILENAME2]"
 msgstr "[IMEDATOTEKE1] [IMEDATOTEKE2]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[RAZLOG]"
+msgid "[REASON] [TIMEOUT]"
+msgstr "[REASON] [TIMEOUT]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SECTION] KEY VALUE"

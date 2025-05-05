@@ -116,7 +116,7 @@ data from `sysfs` or `/dev`.
     {
         g_autoptr(FuDevice) dev = NULL;
         fu_device_set_id(dev, "dummy-1:2:3");
-        fu_device_add_guid(dev, "2d47f29b-83a2-4f31-a2e8-63474f4d4c2e");
+        fu_device_add_instance_id(dev, "2d47f29b-83a2-4f31-a2e8-63474f4d4c2e");
         fu_device_set_version(dev, "1.2.3");
         fu_device_get_version_lowest(dev, "1.2.2");
         fu_device_get_version_bootloader(dev, "0.1.2");
@@ -141,7 +141,7 @@ Some notable points:
 plugins, so including the plugin name as a prefix is probably a good idea.
 
 - The GUID value can be generated automatically using
-`fu_device_add_guid(dev,"some-identifier")` but is quoted here explicitly. The
+`fu_device_add_instance_id(dev,"some-identifier")` but is quoted here explicitly. The
 GUID value has to match the `provides` value in the `.metainfo.xml` file for the
 firmware update to succeed.
 
@@ -544,6 +544,12 @@ device type if needed.
 
 #### prepare
 
+If implemented, can be used to put the device into a mode that makes
+updating possible or anything else that has to be done to a device
+before updating it is possible.
+
+#### prepare_firmware
+
 If implemented, this takes care of decompressing or parsing the firmware
 data. For example, to check if the firmware is valid, if it's suitable
 for the device, etc.
@@ -784,10 +790,10 @@ In certain scenarios you may need to introduce small controlled delays
 in the plugin code, for instance, to comply with a communications
 protocol or to wait for the device to be ready after a particular
 operation. In this case you can insert a delay in microseconds with
-`g_usleep` or a delay in seconds that shows a progress bar with
-`fu_device_sleep_with_progress`. Note that, in both cases, this will
-stop the application main loop during the wait, so use it only when
-necessary.
+`g_usleep` or a delay in milliseconds that shows a progress bar with
+`fu_device_sleep` or `fu_device_sleep_full`. Note that, in both cases,
+this will stop the application main loop during the wait, so use it only
+when necessary.
 
 ### How to define private flags
 

@@ -6,8 +6,6 @@
 
 #include "config.h"
 
-#include <string.h>
-
 #include "fu-dell-kestrel-common.h"
 
 struct _FuDellKestrelIlan {
@@ -26,7 +24,7 @@ static gboolean
 fu_dell_kestrel_ilan_setup(FuDevice *device, GError **error)
 {
 	FuDevice *proxy = fu_device_get_proxy(device);
-	FuDellDockBaseType dock_type = fu_dell_kestrel_ec_get_dock_type(proxy);
+	FuDellDockBaseType dock_type = fu_dell_kestrel_ec_get_dock_type(FU_DELL_KESTREL_EC(proxy));
 	FuDellKestrelEcDevType dev_type = FU_DELL_KESTREL_EC_DEV_TYPE_LAN;
 	guint32 version_raw;
 	g_autofree gchar *devname = NULL;
@@ -42,7 +40,7 @@ fu_dell_kestrel_ilan_setup(FuDevice *device, GError **error)
 	fu_device_build_instance_id(device, error, "EC", "DOCKTYPE", "DEVTYPE", NULL);
 
 	/* version */
-	version_raw = fu_dell_kestrel_ec_get_ilan_version(proxy);
+	version_raw = fu_dell_kestrel_ec_get_ilan_version(FU_DELL_KESTREL_EC(proxy));
 	fu_device_set_version_raw(device, version_raw);
 	return TRUE;
 }
@@ -54,18 +52,20 @@ fu_dell_kestrel_ilan_write(FuDevice *device,
 			   FwupdInstallFlags flags,
 			   GError **error)
 {
-	return fu_dell_kestrel_ec_write_firmware_helper(fu_device_get_proxy(device),
-							firmware,
-							progress,
-							FU_DELL_KESTREL_EC_DEV_TYPE_LAN,
-							0,
-							error);
+	FuDevice *proxy = fu_device_get_proxy(device);
+	return fu_dell_kestrel_hid_device_write_firmware(FU_DELL_KESTREL_HID_DEVICE(proxy),
+							 firmware,
+							 progress,
+							 FU_DELL_KESTREL_EC_DEV_TYPE_LAN,
+							 0,
+							 error);
 }
 
 static void
 fu_dell_kestrel_ilan_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 13, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 72, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 9, "attach");

@@ -31,6 +31,14 @@ configure_file(
 )
 
 configure_file(
+  input: 'fwupdtool-efiboot.test.in',
+  output: 'fwupdtool-efiboot.test',
+  configuration: con2,
+  install: true,
+  install_dir: installed_test_datadir,
+)
+
+configure_file(
   input: 'fwupd.test.in',
   output: 'fwupd.test',
   configuration: con2,
@@ -47,18 +55,35 @@ configure_file(
 )
 
 install_data([
+    'build-certs.py',
     'fakedevice124.bin',
     'fakedevice124.jcat',
     'fakedevice124.metainfo.xml',
-    'fwupdmgr.sh',
     'fwupd-tests.xml',
+    'lsan-suppressions.txt',
   ],
+  install_dir: installed_test_datadir,
+)
+
+configure_file(
+  input: 'fwupdmgr.sh',
+  output: 'fwupdmgr.sh',
+  configuration: con2,
+  install: true,
   install_dir: installed_test_datadir,
 )
 
 configure_file(
   input: 'fwupdtool.sh',
   output: 'fwupdtool.sh',
+  configuration: con2,
+  install: true,
+  install_dir: installed_test_datadir,
+)
+
+configure_file(
+  input: 'fwupdtool-efiboot.sh',
+  output: 'fwupdtool-efiboot.sh',
   configuration: con2,
   install: true,
   install_dir: installed_test_datadir,
@@ -115,10 +140,11 @@ if umockdev_integration_tests.allowed()
   foreach ut: unit_tests
       test(ut, python3, args: [fwupd_mockdev_tests, ut], is_parallel: false,
           env: {
-            'DAEMON_BUILDDIR': join_paths(meson.project_build_root(), 'src'),
-            'LIBFWUPD_BUILD_DIR': join_paths(meson.project_build_root(), 'libfwupd'),
-            'STATE_DIRECTORY': join_paths(meson.project_build_root(), 'state'),
             'CACHE_DIRECTORY': join_paths(meson.project_build_root(), 'cache'),
+            'DAEMON_BUILDDIR': join_paths(meson.project_build_root(), 'src'),
+            'GI_TYPELIB_PATH': join_paths(meson.project_build_root(), 'libfwupd'),
+            'LD_LIBRARY_PATH': join_paths(meson.project_build_root(), 'libfwupd'),
+            'STATE_DIRECTORY': join_paths(meson.project_build_root(), 'state')
           },
           )
   endforeach

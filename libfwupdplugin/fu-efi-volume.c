@@ -56,7 +56,7 @@ fu_efi_volume_validate(FuFirmware *firmware, GInputStream *stream, gsize offset,
 static gboolean
 fu_efi_volume_parse(FuFirmware *firmware,
 		    GInputStream *stream,
-		    FwupdInstallFlags flags,
+		    FuFirmwareParseFlags flags,
 		    GError **error)
 {
 	FuEfiVolume *self = FU_EFI_VOLUME(firmware);
@@ -119,7 +119,7 @@ fu_efi_volume_parse(FuFirmware *firmware,
 	}
 
 	/* verify checksum */
-	if ((flags & FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM) == 0) {
+	if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_CHECKSUM) == 0) {
 		guint16 checksum_verify;
 		g_autoptr(GBytes) blob_hdr = NULL;
 
@@ -169,8 +169,10 @@ fu_efi_volume_parse(FuFirmware *firmware,
 	/* add image */
 	partial_stream =
 	    fu_partial_input_stream_new(stream, hdr_length, fv_length - hdr_length, error);
-	if (partial_stream == NULL)
+	if (partial_stream == NULL) {
+		g_prefix_error(error, "failed to cut EFI volume: ");
 		return FALSE;
+	}
 	fu_firmware_set_id(firmware, guid_str);
 	fu_firmware_set_size(firmware, fv_length);
 
@@ -182,7 +184,7 @@ fu_efi_volume_parse(FuFirmware *firmware,
 		if (!fu_firmware_parse_stream(img,
 					      partial_stream,
 					      0x0,
-					      flags | FWUPD_INSTALL_FLAG_NO_SEARCH,
+					      flags | FU_FIRMWARE_PARSE_FLAG_NO_SEARCH,
 					      error))
 			return FALSE;
 		fu_firmware_add_image(firmware, img);

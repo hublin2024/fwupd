@@ -78,8 +78,8 @@ const gchar *
 fu_engine_get_host_bkc(FuEngine *self) G_GNUC_NON_NULL(1);
 gboolean
 fu_engine_is_uid_trusted(FuEngine *self, guint64 calling_uid) G_GNUC_NON_NULL(1);
-const gchar *
-fu_engine_get_host_security_id(FuEngine *self) G_GNUC_NON_NULL(1);
+gchar *
+fu_engine_get_host_security_id(FuEngine *self, const gchar *fwupd_version) G_GNUC_NON_NULL(1);
 FuCabinet *
 fu_engine_build_cabinet_from_stream(FuEngine *self, GInputStream *stream, GError **error)
     G_GNUC_NON_NULL(1, 2);
@@ -262,6 +262,14 @@ void
 fu_engine_set_silo(FuEngine *self, XbSilo *silo) G_GNUC_NON_NULL(1, 2);
 XbNode *
 fu_engine_get_component_by_guids(FuEngine *self, FuDevice *device) G_GNUC_NON_NULL(1, 2);
+gboolean
+fu_engine_load_release(FuEngine *self,
+		       FuRelease *release,
+		       FuCabinet *cabinet,
+		       XbNode *component,
+		       XbNode *rel,
+		       FwupdInstallFlags install_flags,
+		       GError **error) G_GNUC_NON_NULL(1, 2, 4);
 gchar *
 fu_engine_get_remote_id_for_stream(FuEngine *self, GInputStream *stream) G_GNUC_NON_NULL(1, 2);
 gboolean
@@ -270,9 +278,8 @@ fu_engine_modify_bios_settings(FuEngine *self,
 			       gboolean force_ro,
 			       GError **error) G_GNUC_NON_NULL(1, 2);
 gboolean
-fu_engine_emulation_load(FuEngine *self,
-			 GInputStream *stream,
-			 GError **error) G_GNUC_NON_NULL(1, 2);
+fu_engine_emulation_load(FuEngine *self, GInputStream *stream, GError **error)
+    G_GNUC_NON_NULL(1, 2);
 gboolean
 fu_engine_emulation_save(FuEngine *self, GOutputStream *stream, GError **error)
     G_GNUC_NON_NULL(1, 2);

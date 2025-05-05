@@ -601,10 +601,6 @@ msgstr "취소함"
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "dbx 업데이트가 이미 적용되었기 때문에 적용할 수 없습니다."
 
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "라이브 미디어에서 실행 중일 때는 업데이트를 적용할 수 없음"
-
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
 msgstr "바뀜"
@@ -1204,6 +1200,10 @@ msgstr "펌웨어 BIOS 영역"
 #. TRANSLATORS: longer description
 msgid "Firmware BIOS Region protects device firmware memory from being tampered with."
 msgstr "펌웨어 BIOS 영역에서 장치 펌웨어 메모리에 펌웨어를 임의로 변경하는 행위를 막습니다"
+
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "펌웨어 기본 URI"
 
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
@@ -2505,15 +2505,6 @@ msgstr "장치의 펌웨어 브랜치 전환"
 msgid "System Update Inhibited"
 msgstr "시스템 업데이트 동작을 억제했습니다"
 
-#. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "시스템 전원이 매우 부족하여 업데이트를 수행할 수 없습니다"
-
-#. TRANSLATORS: as in laptop battery power
-#, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "시스템 전원이 매우 부족하여 업데이트를 수행할 수 없습니다 (%u%%, 필요 전원 백분율 %u%%)"
-
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"
 msgstr "시스템에 외부 전원을 연결해야 함"
@@ -3046,10 +3037,6 @@ msgstr "[FILE FILE_SIG REMOTE-ID]"
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[FILENAME1] [FILENAME2]"
 msgstr "[<파일이름1>] [<파일이름2>]"
-
-#. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[<이유>]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SETTING1] [SETTING2] [--no-authenticate]"

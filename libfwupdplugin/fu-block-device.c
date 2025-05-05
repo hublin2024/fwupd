@@ -10,6 +10,7 @@
 
 #ifdef HAVE_SCSI_SG_H
 #include <scsi/sg.h>
+#include <stddef.h>
 #endif
 
 #include "fu-block-device.h"

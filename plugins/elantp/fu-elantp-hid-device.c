@@ -441,7 +441,7 @@ static FuFirmware *
 fu_elantp_hid_device_prepare_firmware(FuDevice *device,
 				      GInputStream *stream,
 				      FuProgress *progress,
-				      FwupdInstallFlags flags,
+				      FuFirmwareParseFlags flags,
 				      GError **error)
 {
 	FuElantpHidDevice *self = FU_ELANTP_HID_DEVICE(device);
@@ -925,6 +925,7 @@ fu_elantp_hid_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 94, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "attach");
@@ -955,17 +956,9 @@ fu_elantp_hid_device_init(FuElantpHidDevice *self)
 }
 
 static void
-fu_elantp_hid_device_finalize(GObject *object)
-{
-	G_OBJECT_CLASS(fu_elantp_hid_device_parent_class)->finalize(object);
-}
-
-static void
 fu_elantp_hid_device_class_init(FuElantpHidDeviceClass *klass)
 {
-	GObjectClass *object_class = G_OBJECT_CLASS(klass);
 	FuDeviceClass *device_class = FU_DEVICE_CLASS(klass);
-	object_class->finalize = fu_elantp_hid_device_finalize;
 	device_class->to_string = fu_elantp_hid_device_to_string;
 	device_class->attach = fu_elantp_hid_device_attach;
 	device_class->set_quirk_kv = fu_elantp_hid_device_set_quirk_kv;

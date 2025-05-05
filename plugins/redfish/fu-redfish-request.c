@@ -81,6 +81,13 @@ fu_redfish_request_load_json(FuRedfishRequest *self, GByteArray *buf, GError **e
 				    "no JSON root node");
 		return FALSE;
 	}
+	if (!JSON_NODE_HOLDS_OBJECT(json_root)) {
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_FILE,
+				    "no JSON root object");
+		return FALSE;
+	}
 	self->json_obj = json_node_get_object(json_root);
 	if (self->json_obj == NULL) {
 		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_INVALID_FILE, "no JSON object");
@@ -194,7 +201,7 @@ fu_redfish_request_perform(FuRedfishRequest *self,
 	}
 
 	/* load JSON */
-	if (flags & FU_REDFISH_REQUEST_PERFORM_FLAG_LOAD_JSON) {
+	if (flags & FU_REDFISH_REQUEST_PERFORM_FLAG_LOAD_JSON && self->buf->len > 0) {
 		if (!fu_redfish_request_load_json(self, self->buf, error)) {
 			g_prefix_error(error, "failed to parse %s: ", uri_str);
 			return FALSE;
@@ -217,6 +224,7 @@ fu_redfish_request_reset(FuRedfishRequest *self)
 {
 	self->status_code = 0;
 	self->json_obj = NULL;
+	g_byte_array_set_size(self->buf, 0);
 }
 
 gboolean

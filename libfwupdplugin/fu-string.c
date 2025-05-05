@@ -72,17 +72,19 @@ fu_strtoull(const gchar *str,
 	/* convert */
 	value_tmp = g_ascii_strtoull(str, &endptr, base); /* nocheck:blocked */
 	if ((gsize)(endptr - str) != strlen(str) && *endptr != '\n') {
-		g_set_error(error, FWUPD_ERROR, FWUPD_ERROR_INVALID_DATA, "cannot parse %s", str);
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_DATA,
+				    "cannot parse datastream");
 		return FALSE;
 	}
 
 	/* overflow check */
 	if (value_tmp == G_MAXUINT64) {
-		g_set_error(error,
-			    FWUPD_ERROR,
-			    FWUPD_ERROR_INVALID_DATA,
-			    "cannot parse %s as caused overflow",
-			    str);
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_DATA,
+				    "parsing datastream caused overflow");
 		return FALSE;
 	}
 
@@ -375,6 +377,30 @@ fu_strsplit(const gchar *str, gsize sz, const gchar *delimiter, gint max_tokens)
 	return g_strsplit(str, delimiter, max_tokens);
 }
 
+/**
+ * fu_strsplit_bytes:
+ * @blob: (not nullable): a #GBytes
+ * @delimiter: a string which specifies the places at which to split the string
+ * @max_tokens: the maximum number of pieces to split @str into
+ *
+ * Splits a string into a maximum of @max_tokens pieces, using the given
+ * delimiter. If @max_tokens is reached, the remainder of string is appended
+ * to the last token.
+ *
+ * Returns: (transfer full): a newly-allocated NULL-terminated array of strings
+ *
+ * Since: 2.0.7
+ **/
+gchar **
+fu_strsplit_bytes(GBytes *blob, const gchar *delimiter, gint max_tokens)
+{
+	g_return_val_if_fail(blob != NULL, NULL);
+	return fu_strsplit(g_bytes_get_data(blob, NULL),
+			   g_bytes_get_size(blob),
+			   delimiter,
+			   max_tokens);
+}
+
 typedef struct {
 	FuStrsplitFunc callback;
 	gpointer user_data;
@@ -382,13 +408,14 @@ typedef struct {
 	const gchar *delimiter;
 	gsize delimiter_sz;
 	gboolean detected_nul;
+	gboolean more_chunks;
 } FuStrsplitHelper;
 
 static gboolean
 fu_strsplit_buffer_drain(GByteArray *buf, FuStrsplitHelper *helper, GError **error)
 {
 	gsize buf_offset = 0;
-	while (buf_offset < buf->len) {
+	while (buf_offset <= buf->len) {
 		gsize offset;
 		g_autoptr(GString) token = g_string_new(NULL);
 
@@ -405,7 +432,7 @@ fu_strsplit_buffer_drain(GByteArray *buf, FuStrsplitHelper *helper, GError **err
 		}
 
 		/* no token found, keep going */
-		if (offset == buf->len)
+		if (helper->more_chunks && offset == buf->len)
 			break;
 
 		/* sanity check is valid UTF-8 */
@@ -473,8 +500,10 @@ fu_strsplit_stream(GInputStream *stream,
 	helper.delimiter_sz = strlen(delimiter);
 	if (offset > 0) {
 		stream_partial = fu_partial_input_stream_new(stream, offset, G_MAXSIZE, error);
-		if (stream_partial == NULL)
+		if (stream_partial == NULL) {
+			g_prefix_error(error, "failed to cut string: ");
 			return FALSE;
+		}
 	} else {
 		stream_partial = g_object_ref(stream);
 	}
@@ -490,6 +519,7 @@ fu_strsplit_stream(GInputStream *stream,
 		if (chk == NULL)
 			return FALSE;
 		g_byte_array_append(buf, fu_chunk_get_data(chk), fu_chunk_get_data_sz(chk));
+		helper.more_chunks = i != fu_chunk_array_length(chunks) - 1;
 		if (!fu_strsplit_buffer_drain(buf, &helper, error))
 			return FALSE;
 		if (helper.detected_nul)

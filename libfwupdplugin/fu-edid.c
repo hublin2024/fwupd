@@ -219,7 +219,7 @@ fu_edid_parse_descriptor(FuEdid *self, GInputStream *stream, gsize offset, GErro
 static gboolean
 fu_edid_parse(FuFirmware *firmware,
 	      GInputStream *stream,
-	      FwupdInstallFlags flags,
+	      FuFirmwareParseFlags flags,
 	      GError **error)
 {
 	FuEdid *self = FU_EDID(firmware);

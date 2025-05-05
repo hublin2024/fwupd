@@ -13,6 +13,11 @@
 enum { EP_OUT, EP_IN, EP_LAST };
 #define HUDDLY_USB_RECEIVE_BUFFER_SIZE 1024
 
+#if !GLIB_CHECK_VERSION(2, 74, 0)
+#define G_REGEX_DEFAULT	      0
+#define G_REGEX_MATCH_DEFAULT 0
+#endif
+
 struct _FuHuddlyUsbDevice {
 	FuUsbDevice parent_instance;
 	guint bulk_ep[EP_LAST];
@@ -242,7 +247,10 @@ fu_huddly_usb_device_ensure_product_info(FuHuddlyUsbDevice *self, GError **error
 		g_prefix_error(error, "failed to read product info: ");
 		return FALSE;
 	}
-	version_split = g_strsplit(fu_msgpack_item_get_string(item_version)->str, "-", 2);
+	version_split = g_regex_split_simple("[-+]",
+					     fu_msgpack_item_get_string(item_version)->str,
+					     G_REGEX_DEFAULT,
+					     G_REGEX_MATCH_DEFAULT);
 	fu_device_set_version(FU_DEVICE(self), version_split[0]);
 
 	/* state */
@@ -590,6 +598,7 @@ static void
 fu_huddly_usb_device_set_progress(FuDevice *device, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 1, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 72, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 26, "attach");
@@ -606,7 +615,6 @@ fu_huddly_usb_device_init(FuHuddlyUsbDevice *self)
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_SIGNED_PAYLOAD);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_SELF_RECOVERY);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_DUAL_IMAGE);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_add_icon(FU_DEVICE(self), "camera-web");
 }
 

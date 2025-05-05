@@ -6,15 +6,13 @@
 
 #include "config.h"
 
-#include <string.h>
-
 #include "fu-dell-kestrel-common.h"
 
 struct _FuDellKestrelRmm {
-	FuDevice parent_instance;
+	FuDellKestrelHidDevice parent_instance;
 };
 
-G_DEFINE_TYPE(FuDellKestrelRmm, fu_dell_kestrel_rmm, FU_TYPE_HID_DEVICE)
+G_DEFINE_TYPE(FuDellKestrelRmm, fu_dell_kestrel_rmm, FU_TYPE_DELL_KESTREL_HID_DEVICE)
 
 static gchar *
 fu_dell_kestrel_rmm_convert_version(FuDevice *device, guint64 version_raw)
@@ -23,28 +21,29 @@ fu_dell_kestrel_rmm_convert_version(FuDevice *device, guint64 version_raw)
 }
 
 void
-fu_dell_kestrel_rmm_fix_version(FuDevice *device)
+fu_dell_kestrel_rmm_fix_version(FuDellKestrelRmm *self)
 {
 	FuDevice *parent = NULL;
 
 	/* use version given by parent */
-	parent = fu_device_get_parent(device);
+	parent = fu_device_get_parent(FU_DEVICE(self));
 	if (parent != NULL) {
 		guint32 rmm_version;
-
-		rmm_version = fu_dell_kestrel_ec_get_rmm_version(parent);
-		fu_device_set_version_raw(device, rmm_version);
+		rmm_version = fu_dell_kestrel_ec_get_rmm_version(FU_DELL_KESTREL_EC(parent));
+		fu_device_set_version_raw(FU_DEVICE(self), rmm_version);
 	}
 }
 
 static gboolean
 fu_dell_kestrel_rmm_setup(FuDevice *device, GError **error)
 {
+	FuDellKestrelRmm *self = FU_DELL_KESTREL_RMM(device);
+
 	/* FuUsbDevice->setup */
 	if (!FU_DEVICE_CLASS(fu_dell_kestrel_rmm_parent_class)->setup(device, error))
 		return FALSE;
 
-	fu_dell_kestrel_rmm_fix_version(device);
+	fu_dell_kestrel_rmm_fix_version(self);
 	return TRUE;
 }
 
@@ -55,18 +54,19 @@ fu_dell_kestrel_rmm_write(FuDevice *device,
 			  FwupdInstallFlags flags,
 			  GError **error)
 {
-	return fu_dell_kestrel_ec_write_firmware_helper(device,
-							firmware,
-							progress,
-							FU_DELL_KESTREL_EC_DEV_TYPE_RMM,
-							0,
-							error);
+	return fu_dell_kestrel_hid_device_write_firmware(FU_DELL_KESTREL_HID_DEVICE(device),
+							 firmware,
+							 progress,
+							 FU_DELL_KESTREL_EC_DEV_TYPE_RMM,
+							 0,
+							 error);
 }
 
 static void
 fu_dell_kestrel_rmm_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 13, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 72, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 9, "attach");

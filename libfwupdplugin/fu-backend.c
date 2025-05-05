@@ -77,6 +77,10 @@ fu_backend_device_added(FuBackend *self, FuDevice *device)
 	if (fu_device_get_backend_id(device) == NULL)
 		fu_device_set_backend_id(device, priv->name);
 
+	/* set created to *now* */
+	if (fu_device_get_created_usec(device) == 0)
+		fu_device_set_created_usec(device, g_get_real_time());
+
 	/* sanity check */
 	if ((g_getenv("FWUPD_UEFI_TEST") == NULL) &&
 	    g_hash_table_contains(priv->devices, fu_device_get_backend_id(device))) {
@@ -202,6 +206,7 @@ FuDevice *
 fu_backend_create_device(FuBackend *self, const gchar *backend_id, GError **error)
 {
 	FuBackendClass *klass = FU_BACKEND_GET_CLASS(self);
+	g_autoptr(FuDevice) device = NULL;
 
 	g_return_val_if_fail(FU_IS_BACKEND(self), NULL);
 	g_return_val_if_fail(backend_id != NULL, NULL);
@@ -215,7 +220,13 @@ fu_backend_create_device(FuBackend *self, const gchar *backend_id, GError **erro
 			    G_OBJECT_TYPE_NAME(self));
 		return NULL;
 	}
-	return klass->create_device(self, backend_id, error);
+	device = klass->create_device(self, backend_id, error);
+	if (device == NULL)
+		return NULL;
+	fu_device_set_backend(device, self);
+
+	/* success */
+	return g_steal_pointer(&device);
 }
 
 /**
@@ -234,14 +245,24 @@ FuDevice *
 fu_backend_create_device_for_donor(FuBackend *self, FuDevice *donor, GError **error)
 {
 	FuBackendClass *klass = FU_BACKEND_GET_CLASS(self);
+	g_autoptr(FuDevice) device = NULL;
 
 	g_return_val_if_fail(FU_IS_BACKEND(self), NULL);
 	g_return_val_if_fail(FU_IS_DEVICE(donor), NULL);
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
+	/* no impl */
 	if (klass->create_device_for_donor == NULL)
 		return g_object_ref(donor);
-	return klass->create_device_for_donor(self, donor, error);
+
+	/* impl */
+	device = klass->create_device_for_donor(self, donor, error);
+	if (device == NULL)
+		return NULL;
+	fu_device_set_backend(device, self);
+
+	/* success */
+	return g_steal_pointer(&device);
 }
 
 /**
@@ -346,6 +367,7 @@ fu_backend_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
 	FuBackendPrivate *priv = GET_PRIVATE(self);
 	JsonArray *json_array;
 	JsonObject *json_object;
+	const gchar *fwupd_version;
 	g_autoptr(GPtrArray) devices_added =
 	    g_ptr_array_new_with_free_func((GDestroyNotify)g_object_unref);
 	g_autoptr(GPtrArray) devices_remove = NULL;
@@ -368,6 +390,10 @@ fu_backend_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
 	if (!json_object_has_member(json_object, "UsbDevices"))
 		return TRUE;
 
+	/* if recorded */
+	fwupd_version =
+	    json_object_get_string_member_with_default(json_object, "FwupdVersion", NULL);
+
 	/* four steps:
 	 *
 	 * 1. store all the existing devices matching the tag in devices_remove
@@ -381,11 +407,21 @@ fu_backend_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
 	json_array = json_object_get_array_member(json_object, "UsbDevices");
 	for (guint i = 0; i < json_array_get_length(json_array); i++) {
 		JsonNode *node_tmp = json_array_get_element(json_array, i);
-		JsonObject *object_tmp = json_node_get_object(node_tmp);
+		JsonObject *object_tmp;
 		FuDevice *device_old;
 		g_autoptr(FuDevice) device_tmp = NULL;
 		const gchar *device_gtypestr;
 		GType device_gtype;
+
+		/* sanity check */
+		if (!JSON_NODE_HOLDS_OBJECT(node_tmp)) {
+			g_set_error_literal(error,
+					    FWUPD_ERROR,
+					    FWUPD_ERROR_INVALID_DATA,
+					    "not JSON object");
+			return FALSE;
+		}
+		object_tmp = json_node_get_object(node_tmp);
 
 		/* get the GType */
 		device_gtypestr =
@@ -404,7 +440,10 @@ fu_backend_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
 
 		/* create device */
 		device_tmp = g_object_new(device_gtype, "context", priv->ctx, NULL);
-		if (!fwupd_codec_from_json(FWUPD_CODEC(device_tmp), node_tmp, error))
+		fu_device_add_flag(device_tmp, FWUPD_DEVICE_FLAG_EMULATED);
+		if (fwupd_version != NULL)
+			fu_device_set_fwupd_version(device_tmp, fwupd_version);
+		if (!fu_device_from_json(device_tmp, object_tmp, error))
 			return FALSE;
 		if (fu_device_get_backend_id(device_tmp) == NULL) {
 			g_set_error(error,
@@ -460,7 +499,6 @@ fu_backend_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
 		g_autoptr(GError) error_local = NULL;
 
 		/* convert from FuUdevDevice to the superclass, e.g. FuHidrawDevice */
-		fu_device_add_flag(donor, FWUPD_DEVICE_FLAG_EMULATED);
 		if (!fu_device_probe(donor, &error_local)) {
 			if (!g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_FOUND)) {
 				g_propagate_error(error, g_steal_pointer(&error_local));
@@ -471,6 +509,15 @@ fu_backend_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
 		if (device == NULL)
 			return FALSE;
 		fu_device_add_flag(device, FWUPD_DEVICE_FLAG_EMULATED);
+
+		/* some devices only add plugin-matching instance IDs in FuDevice->setup() */
+		if (fu_device_has_private_flag(device,
+					       FU_DEVICE_PRIVATE_FLAG_EMULATED_REQUIRE_SETUP)) {
+			g_autoptr(FuDeviceLocker) locker = fu_device_locker_new(device, error);
+			if (locker == NULL)
+				return FALSE;
+		}
+
 		fu_backend_device_added(self, device);
 	}
 
@@ -495,7 +542,7 @@ fu_backend_add_json(FwupdCodec *codec, JsonBuilder *builder, FwupdCodecFlags fla
 		if (!fu_device_has_flag(device, FWUPD_DEVICE_FLAG_EMULATION_TAG))
 			continue;
 		json_builder_begin_object(builder);
-		fwupd_codec_to_json(FWUPD_CODEC(device), builder, FWUPD_CODEC_FLAG_NONE);
+		fu_device_add_json(device, builder, FWUPD_CODEC_FLAG_NONE);
 		json_builder_end_object(builder);
 	}
 	json_builder_end_array(builder);

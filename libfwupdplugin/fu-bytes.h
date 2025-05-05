@@ -25,7 +25,11 @@ gboolean
 fu_bytes_compare(GBytes *bytes1, GBytes *bytes2, GError **error) G_GNUC_WARN_UNUSED_RESULT
     G_GNUC_NON_NULL(1, 2);
 GBytes *
-fu_bytes_pad(GBytes *bytes, gsize sz) G_GNUC_NON_NULL(1);
+fu_bytes_pad(GBytes *bytes, gsize sz, guint8 data) G_GNUC_NON_NULL(1);
 GBytes *
 fu_bytes_new_offset(GBytes *bytes, gsize offset, gsize length, GError **error)
     G_GNUC_WARN_UNUSED_RESULT G_GNUC_NON_NULL(1);
+gchar *
+fu_bytes_to_string(GBytes *bytes) G_GNUC_WARN_UNUSED_RESULT G_GNUC_NON_NULL(1);
+GBytes *
+fu_bytes_from_string(const gchar *str, GError **error) G_GNUC_NON_NULL(1);

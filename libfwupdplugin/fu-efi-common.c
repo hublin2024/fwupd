@@ -71,7 +71,7 @@ fu_efi_guid_to_name(const gchar *guid)
  * fu_efi_parse_sections:
  * @firmware: #FuFirmware
  * @stream: a #GInputStream
- * @flags: flags
+ * @flags: #FuFirmwareParseFlags
  * @error: (nullable): optional return location for an error
  *
  * Parses a UEFI section.
@@ -84,7 +84,7 @@ gboolean
 fu_efi_parse_sections(FuFirmware *firmware,
 		      GInputStream *stream,
 		      gsize offset,
-		      FwupdInstallFlags flags,
+		      FuFirmwareParseFlags flags,
 		      GError **error)
 {
 	gsize streamsz = 0;
@@ -98,12 +98,14 @@ fu_efi_parse_sections(FuFirmware *firmware,
 		/* parse maximum payload */
 		partial_stream =
 		    fu_partial_input_stream_new(stream, offset, streamsz - offset, error);
-		if (partial_stream == NULL)
+		if (partial_stream == NULL) {
+			g_prefix_error(error, "failed to cut payload: ");
 			return FALSE;
+		}
 		if (!fu_firmware_parse_stream(img,
 					      partial_stream,
 					      0x0,
-					      flags | FWUPD_INSTALL_FLAG_NO_SEARCH,
+					      flags | FU_FIRMWARE_PARSE_FLAG_NO_SEARCH,
 					      error)) {
 			g_prefix_error(error,
 				       "failed to parse section of size 0x%x: ",

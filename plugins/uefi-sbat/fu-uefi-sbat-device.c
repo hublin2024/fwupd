@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Richard hughes <Richard@hughsie.com>
+ * Copyright 2024 Richard Hughes <richard@hughsie.com>
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
@@ -57,7 +57,7 @@ static FuFirmware *
 fu_uefi_sbat_device_prepare_firmware(FuDevice *device,
 				     GInputStream *stream,
 				     FuProgress *progress,
-				     FwupdInstallFlags flags,
+				     FuFirmwareParseFlags flags,
 				     GError **error)
 {
 	FuContext *ctx = fu_device_get_context(device);
@@ -188,6 +188,7 @@ static void
 fu_uefi_sbat_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
@@ -201,6 +202,7 @@ fu_uefi_sbat_device_init(FuUefiSbatDevice *self)
 	fu_device_set_summary(FU_DEVICE(self), "Generation number based revocation mechanism");
 	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_TRIPLET);
 	fu_device_add_protocol(FU_DEVICE(self), "com.uefi.sbat");
+	fu_device_add_icon(FU_DEVICE(self), "application-certificate");
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UPDATABLE);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_SIGNED_PAYLOAD);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_NEEDS_REBOOT);
@@ -229,7 +231,7 @@ fu_uefi_sbat_device_new(FuContext *ctx, GBytes *blob, GError **error)
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
 	/* copy the version across */
-	if (!fu_firmware_parse_bytes(firmware, blob, 0x0, FWUPD_INSTALL_FLAG_NONE, error))
+	if (!fu_firmware_parse_bytes(firmware, blob, 0x0, FU_FIRMWARE_PARSE_FLAG_NONE, error))
 		return NULL;
 	self = g_object_new(FU_TYPE_UEFI_SBAT_DEVICE, "context", ctx, NULL);
 	fu_device_set_version(FU_DEVICE(self), fu_firmware_get_version(firmware));

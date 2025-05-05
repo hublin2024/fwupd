@@ -5,9 +5,10 @@
 # Translators:
 # Alexander Barton, 2024
 # Christian <Christian.Kirbach@googlemail.com>, 2023
-# Ettore Atalan <atalanttore@googlemail.com>, 2018,2021-2024
+# Ettore Atalan <atalanttore@googlemail.com>, 2018,2021-2025
 # F Bausch, 2024
 # Marco Tedaldi <tedaldi@hifo.uzh.ch>, 2015
+# Mario Blättermann <mario.blaettermann@gmail.com>, 2025
 # Wolfgang Stöggl <c72578@yahoo.de>, 2015
 msgid ""
 msgstr ""
@@ -125,6 +126,16 @@ msgstr "%s GPU-Aktualisierung"
 #, c-format
 msgid "%s Graphics Tablet Update"
 msgstr "%s Grafiktablett-Aktualisierung"
+
+#. TRANSLATORS: two miniature speakers attached to your ears
+#, c-format
+msgid "%s Headphones Update"
+msgstr "%s Kopfhörer-Aktualisierung"
+
+#. TRANSLATORS: headphones with an integrated microphone
+#, c-format
+msgid "%s Headset Update"
+msgstr "%s Headset-Aktualisierung"
 
 #. TRANSLATORS: an input device used by gamers, e.g. a joystick
 #, c-format
@@ -318,6 +329,13 @@ msgid_plural "%u seconds"
 msgstr[0] "%u Sekunde"
 msgstr[1] "%u Sekunden"
 
+#. TRANSLATORS: device tests can be specific to a CPU type
+#, c-format
+msgid "%u test was skipped"
+msgid_plural "%u tests were skipped"
+msgstr[0] "%u Test wurde übersprungen"
+msgstr[1] "%u Tests wurden übersprungen"
+
 #. TRANSLATORS: first percentage is current value, 2nd percentage is the
 #. * lowest limit the firmware update is allowed for the update to happen
 #, c-format
@@ -418,6 +436,10 @@ msgstr "Neuinstallation vorhandener Firmware-Versionen erlauben"
 msgid "Allow switching firmware branch"
 msgstr "Wechsel des Firmware-Zweigs erlauben"
 
+#. TRANSLATORS: error message
+msgid "Already exists, and no --force specified"
+msgstr "Bereits vorhanden, und kein --force angegeben"
+
 #. TRANSLATORS: is not the main firmware stream
 msgid "Alternate branch"
 msgstr "Alternativer Zweig"
@@ -482,8 +504,16 @@ msgid "Authentication is required to downgrade the firmware on this machine"
 msgstr "Zum Herabstufen der Firmware auf diesem System ist eine Authentifizierung erforderlich"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to enable emulation data collection"
+msgstr "Zum Aktivieren der Emulationsdatenerfassung ist eine Authentifizierung erforderlich."
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to fix a host security issue"
 msgstr "Zur Behebung eines Host-Sicherheitsproblems ist eine Authentifizierung erforderlich"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to load hardware emulation data"
+msgstr "Zum Laden von Hardware-Emulationsdaten ist eine Authentifizierung erforderlich"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to modify BIOS settings"
@@ -506,12 +536,20 @@ msgid "Authentication is required to reset daemon configuration to defaults"
 msgstr "Zum Zurücksetzen der Daemon-Konfiguration auf die Standardeinstellungen ist eine Authentifizierung erforderlich"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to save hardware emulation data"
+msgstr "Zum Speichern von Hardware-Emulationsdaten ist eine Authentifizierung erforderlich"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to set the list of approved firmware"
 msgstr "Zum Festlegen der Liste der zugelassenen Firmware ist eine Authentifizierung erforderlich"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to sign data using the client certificate"
 msgstr "Zum Signieren von Daten mit dem Client-Zertifikat ist eine Authentifizierung erforderlich"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to stop the firmware update service"
+msgstr "Zum Stoppen des Firmware-Aktualisierungsdienstes ist eine Authentifizierung erforderlich"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to switch to the new firmware version"
@@ -540,6 +578,11 @@ msgstr "Zur Aktualisierung der gespeicherten Prüfsummen für das Gerät ist ein
 #. TRANSLATORS: Boolean value to automatically send reports
 msgid "Automatic Reporting"
 msgstr "Automatische Berichterstattung"
+
+#. TRANSLATORS: we can auto-uninhibit after a timeout
+#, c-format
+msgid "Automatically uninhibiting in %ums…"
+msgstr "Wird in %u ms automatisch entriegelt..."
 
 #. TRANSLATORS: can we JFDI?
 msgid "Automatically upload every time?"
@@ -623,6 +666,10 @@ msgstr "CET-Plattform"
 msgid "CPU Microcode must be updated to mitigate against various information-disclosure security issues."
 msgstr "Der CPU-Mikrocode muss aktualisiert werden, um verschiedene Sicherheitsprobleme bei der Informationspreisgabe abzumildern."
 
+#. TRANSLATORS: we can save all device enumeration events for emulation
+msgid "Can tag for emulation"
+msgstr "Kann für die Emulation markieren"
+
 #. TRANSLATORS: this is to abort the interactive prompt
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -635,10 +682,6 @@ msgstr "Abgebrochen"
 #. TRANSLATORS: same or newer update already applied
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "Eine bereits angewandte dbx-Aktualisierung kann nicht angewendet werden."
-
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "Aktualisierungen können nicht auf Live-Medien angewendet werden"
 
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
@@ -686,6 +729,10 @@ msgstr "Befehl nicht gefunden"
 msgid "Community supported"
 msgstr "Von der Gemeinschaft unterstützt"
 
+#. TRANSLATORS: command description
+msgid "Compares two versions for equality"
+msgstr "Vergleicht zwei Versionen auf Gleichheit"
+
 #. TRANSLATORS: title prefix for the BIOS settings dialog
 msgid "Configuration Change Suggested"
 msgstr "Vorgeschlagene Konfigurationsänderung"
@@ -705,6 +752,10 @@ msgstr "Kontrollfluss-Durchsetzungstechnologie"
 #. TRANSLATORS: command description
 msgid "Convert a firmware file"
 msgstr "Eine Firmware-Datei konvertieren"
+
+#. TRANSLATORS: command description
+msgid "Create an EFI boot entry"
+msgstr "EFI-Boot-Eintrag erstellen"
 
 #. TRANSLATORS: when the update was built
 msgid "Created"
@@ -737,6 +788,10 @@ msgstr "Defektlokalisierungsoptionen"
 #. TRANSLATORS: decompressing the firmware file
 msgid "Decompressing…"
 msgstr "Entpacken …"
+
+#. TRANSLATORS: command description
+msgid "Delete an EFI boot entry"
+msgstr "EFI-Boot-Eintrag löschen"
 
 #. TRANSLATORS: description of BIOS setting
 #. TRANSLATORS: multiline description of device
@@ -991,6 +1046,11 @@ msgstr "Nicht in die Verlaufsdatenbank schreiben"
 msgid "Do you understand the consequences of changing the firmware branch?"
 msgstr "Verstehen Sie die Folgen einer Änderung des Firmware-Zweigs?"
 
+#. TRANSLATORS: ask the user if it's okay to convert,
+#. * "it" being the data contained in the EFI boot entry
+msgid "Do you want to convert it now?"
+msgstr "Möchten Sie es jetzt konvertieren?"
+
 #. TRANSLATORS: offer to disable this nag
 msgid "Do you want to disable this feature for future updates?"
 msgstr "Möchten Sie diese Funktion für zukünftige Aktualisierungen deaktivieren?"
@@ -1060,6 +1120,9 @@ msgstr "Emulierter Host"
 
 msgid "Enable"
 msgstr "Aktivieren"
+
+msgid "Enable emulation data collection"
+msgstr "Emulationsdatenerfassung aktivieren"
 
 #. TRANSLATORS: a remote here is like a 'repo' or software source
 msgid "Enable new remote?"
@@ -1296,6 +1359,10 @@ msgstr "Firmware-BIOS-Region"
 msgid "Firmware BIOS Region protects device firmware memory from being tampered with."
 msgstr "Firmware-BIOS-Region schützt den Firmware-Speicher des Geräts vor Manipulationen."
 
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "Firmware Basis-URI"
+
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
 msgstr "D-Bus-Dienst für Firmware-Aktualisierung"
@@ -1431,6 +1498,10 @@ msgid "Get all enabled plugins registered with the system"
 msgstr "Alle aktivierten und im System registrierten Plugins ermitteln"
 
 #. TRANSLATORS: command description
+msgid "Get all known version formats"
+msgstr "Alle bekannten Versionsformate abrufen"
+
+#. TRANSLATORS: command description
 msgid "Get device report metadata"
 msgstr "Gerätebericht-Metadaten abrufen"
 
@@ -1494,6 +1565,22 @@ msgstr "Die Attribute der Sicherheitskennung des Hosts wurden erfolgreich hochge
 #. TRANSLATORS: this is a string like 'HSI:2-U'
 msgid "Host Security ID:"
 msgstr "Host-Sicherheitskennung:"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX"
+msgstr "INDEX"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX KEY [VALUE]"
+msgstr "INDEXSCHLÜSSEL [WERT]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "INDEXNAME [EINHÄNGEPUNKT]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX1,INDEX2"
+msgstr "INDEX1,INDEX2"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "INHIBIT-ID"
@@ -1717,6 +1804,14 @@ msgstr "Ungültige Argumente"
 msgid "Invalid arguments, expected GUID"
 msgstr "Ungültige Argumente, erwartete GUID"
 
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX KEY [VALUE]"
+msgstr "Ungültige Argumente, erwartete INDEXSCHLÜSSEL [WERT]"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "Ungültige Argumente, erwartete INDEXNAME ZIEL [EINHÄNGEPUNKT]"
+
 #. TRANSLATOR: This is the error message for
 #. * incorrect parameter
 msgid "Invalid arguments, expected an AppStream ID"
@@ -1725,6 +1820,10 @@ msgstr "Ungültige Argumente. Es wurde eine AppStream-Kennung erwartet."
 #. TRANSLATORS: error message
 msgid "Invalid arguments, expected at least ARCHIVE FIRMWARE METAINFO"
 msgstr "Ungültige Argumente, erwartete wenigstens ARCHIV FIRMWARE METAINFO"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected base-16 integer"
+msgstr "Ungültige Argumente, erwartete Basis-16-Ganzzahl"
 
 #. TRANSLATORS: version is older
 msgid "Is downgrade"
@@ -1799,10 +1898,10 @@ msgid "Linux Swap"
 msgstr "Linux-Auslagerung"
 
 msgid "Linux Vendor Firmware Service (stable firmware)"
-msgstr "Linux Hersteller Firmware Dienst (stabile Firmware)"
+msgstr "Linux-Hersteller-Firmwaredienst (stabile Firmware)"
 
 msgid "Linux Vendor Firmware Service (testing firmware)"
-msgstr "Linux Vendor Firmware Service (Test-Firmware)"
+msgstr "Linux-Hersteller-Firmwaredienst (Test-Firmware)"
 
 #. TRANSLATORS: Title: if it's tainted or not
 msgid "Linux kernel"
@@ -1926,7 +2025,7 @@ msgstr "Metadaten-URI"
 
 #. TRANSLATORS: explain why no metadata available
 msgid "Metadata can be obtained from the Linux Vendor Firmware Service."
-msgstr "Metadaten können über den Linux Vendor Firmware Service bezogen werden."
+msgstr "Metadaten können über den Linux-Hersteller-Firmwaredienst bezogen werden."
 
 #. TRANSLATORS: error message for a user who ran fwupdmgr
 #. * refresh recently -- %1 is '--force'
@@ -2028,6 +2127,11 @@ msgstr "Keine Aktualisierungen verfügbar"
 
 msgid "No updates available for remaining devices"
 msgstr "Für die verbleibenden Geräte sind keine Aktualisierungen verfügbar"
+
+#. TRANSLATORS: error message
+#, c-format
+msgid "No volume matched %s"
+msgstr "Kein Volume passt zu %s"
 
 #. TRANSLATORS: version cannot be installed due to policy
 msgid "Not approved"
@@ -2379,6 +2483,10 @@ msgstr "Laufender Kernel ist zu alt"
 msgid "Runtime Suffix"
 msgstr "Laufzeit-Suffix"
 
+#. TRANSLATORS: Software Bill of Materials link
+msgid "SBOM"
+msgstr "Software-Stückliste"
+
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "SECTION"
 msgstr "ABSCHNITT"
@@ -2394,6 +2502,10 @@ msgstr "EINSTELLUNG1 WERT1 [EINSTELLUNG2] [WERT2]"
 #. TRANSLATORS: Title: SMAP = Supervisor Mode Access Prevention
 msgid "SMAP"
 msgstr "SMAP"
+
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "SMM locked down"
+msgstr "SMM gesperrt"
 
 #. TRANSLATORS: Title: SPI refers to the flash chip in the computer
 msgid "SPI BIOS Descriptor"
@@ -2487,6 +2599,18 @@ msgstr "Eine BIOS-Einstellung festlegen"
 
 msgid "Set one or more BIOS settings"
 msgstr "Eine oder mehrere BIOS-Einstellungen festlegen"
+
+#. TRANSLATORS: command description
+msgid "Set or remove an EFI boot hive entry"
+msgstr "EFI-Boot-hive-Eintrag festlegen oder entfernen"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot next"
+msgstr "Nächsten EFI-Boot festlegen"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot order"
+msgstr "EFI-Boot-Reihenfolge festlegen"
 
 #. TRANSLATORS: command line option
 msgid "Set the download retries for transient errors"
@@ -2590,6 +2714,9 @@ msgstr "Quelle"
 #. TRANSLATORS: command line option
 msgid "Specify the dbx database file"
 msgstr "dbx-Datenbankdatei angeben"
+
+msgid "Stop the fwupd service"
+msgstr "Dienst fwupd stoppen"
 
 #. TRANSLATORS: The BIOS setting accepts strings
 msgid "String"
@@ -2736,18 +2863,26 @@ msgstr "Den Firmware-Zweig auf dem Gerät wechseln"
 msgid "Sync firmware versions to the chosen configuration"
 msgstr "Firmware-Versionen mit der ausgewählten Konfiguration synchronisieren"
 
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "System Management Mode"
+msgstr "Systemverwaltungsmodus"
+
 #. TRANSLATORS: this CLI tool is now preventing system updates
 msgid "System Update Inhibited"
 msgstr "Systemaktualisierung blockiert"
 
+#. TRANSLATORS: longer description
+msgid "System management mode is used by the firmware to access resident BIOS code and data."
+msgstr "Der Systemverwaltungsmodus wird von der Firmware für den Zugriff auf speicherresidenten BIOS-Code und Daten verwendet."
+
 #. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "Systemleistung ist zu gering, um die Aktualisierung durchzuführen"
+msgid "System power is too low"
+msgstr "Stromversorgung des Systems ist zu niedrig"
 
 #. TRANSLATORS: as in laptop battery power
 #, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "Systemleistung ist zu gering, um die Aktualisierung durchzuführen (%u%%, erfordert %u%%)"
+msgid "System power is too low (%u%%, requires %u%%)"
+msgstr "Das System ist zu schwach (%u%%, erfordert %u%%)"
 
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"
@@ -2826,6 +2961,14 @@ msgstr "Geprüft von %s"
 msgid "Tested by trusted vendor"
 msgstr "Getestet von einem vertrauenswürdigen Anbieter"
 
+#. TRANSLATORS: the boot entry was in a legacy format
+msgid "The EFI boot entry is not in hive format, and shim may not be new enough to read it."
+msgstr "Der EFI-Boot-Eintrag ist nicht im hive-Format, und shim ist möglicherweise nicht neu genug, um ihn zu lesen."
+
+#. TRANSLATORS: try to treat the legacy format as a hive
+msgid "The EFI boot entry was not in hive format, falling back"
+msgstr "Der EFI-Boot-Eintrag war nicht im hive-Format, Rückgriff auf Reservesystem"
+
 #. TRANSLATORS: longer description
 msgid "The Intel Management Engine Key Manifest must be valid so that the device firmware can be trusted by the CPU."
 msgstr "Das Schlüsselmanifest der Intel Verwaltungs-Engine muss gültig sein, damit die Geräte-Firmware von der CPU als vertrauenswürdig eingestuft werden kann."
@@ -2853,6 +2996,10 @@ msgstr "Das TPM PCR0 unterscheidet sich von der Rekonstruktion."
 #. TRANSLATORS: longer description
 msgid "The UEFI Platform Key is used to determine if device software comes from a trusted source."
 msgstr "Der UEFI-Plattformschlüssel wird verwendet, um festzustellen, ob die Gerätesoftware aus einer vertrauenswürdigen Quelle stammt."
+
+#. TRANSLATORS: longer description
+msgid "The UEFI system can set up memory attributes at boot which prevent common exploits from running."
+msgstr "Das UEFI-System kann beim Booten Speicherattribute einrichten, die die Ausführung gängiger Exploits verhindern."
 
 #. TRANSLATORS: the user is SOL for support...
 msgid "The daemon has loaded 3rd party code and is no longer supported by the upstream developers!"
@@ -2997,6 +3144,10 @@ msgstr "Die UEFI-ESP-Partition ist möglicherweise nicht korrekt eingerichtet"
 msgid "UEFI ESP partition not detected or configured"
 msgstr "UEFI ESP-Partition nicht erkannt oder konfiguriert"
 
+#. TRANSLATORS: Title: is UEFI early-boot memory protection turned on
+msgid "UEFI Memory Protection"
+msgstr "UEFI-Speicherschutz"
+
 #. TRANSLATORS: Title: PK is the 'platform key' for the machine
 msgid "UEFI Platform Key"
 msgstr "UEFI-Plattformschlüssel"
@@ -3028,6 +3179,26 @@ msgstr "UEFI dbx-Dienstprogramm"
 #. TRANSLATORS: system is not booted in UEFI mode
 msgid "UEFI firmware can not be updated in legacy BIOS mode"
 msgstr "UEFI-Firmware kann im veralteten BIOS-Modus nicht aktualisiert werden"
+
+#. TRANSLATORS: Title: is UEFI early-boot memory protection turned on
+msgid "UEFI memory protection"
+msgstr "UEFI-Speicherschutz"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection enabled and locked"
+msgstr "UEFI-Speicherschutz aktiviert und gesperrt"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection enabled but not locked"
+msgstr "UEFI-Speicherschutz aktiviert, aber nicht gesperrt"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection is now locked"
+msgstr "UEFI-Speicherschutz ist jetzt gesperrt"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection is now unlocked"
+msgstr "UEFI-Speicherschutz ist jetzt entsperrt"
 
 #. TRANSLATORS: Title: PK is the 'platform key' for the machine
 msgid "UEFI platform key"
@@ -3224,6 +3395,10 @@ msgstr "Benutzer wurde benachrichtigt"
 msgid "Username"
 msgstr "Benutzername"
 
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "VERSION1 VERSION2 [FORMAT]"
+msgstr "VERSION1 VERSION2 [FORMAT]"
+
 #. TRANSLATORS: Suffix: the HSI result
 msgid "Valid"
 msgstr "Gültig"
@@ -3338,8 +3513,12 @@ msgid "[FILENAME1] [FILENAME2]"
 msgstr "[DATEINAME1] [DATEINAME2]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[GRUND]"
+msgid "[FWUPD-VERSION]"
+msgstr "[FWUPD-VERSION]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "[REASON] [TIMEOUT]"
+msgstr "[GRUND] [ZEITÜBERSCHREITUNG]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SECTION] KEY VALUE"

@@ -1,10 +1,11 @@
-if enable_udev and (host_cpu == 'x86' or host_cpu == 'x86_64')
+if host_machine.system() == 'linux' and (host_cpu == 'x86' or host_cpu == 'x86_64')
 cargs = ['-DG_LOG_DOMAIN="FuPluginThunderbolt"']
 
 plugin_quirks += files('thunderbolt.quirk')
 plugins += {meson.current_source_dir().split('/')[-1]: true}
 
 plugin_builtin_thunderbolt = static_library('fu_plugin_thunderbolt',
+  rustgen.process('fu-thunderbolt.rs'),
   sources: [
     'fu-thunderbolt-plugin.c',
     'fu-thunderbolt-common.c',

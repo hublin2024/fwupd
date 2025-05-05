@@ -6,10 +6,8 @@
 
 #include "config.h"
 
-#include <gio/gio.h>
-#ifdef HAVE_LIBCURL
 #include <curl/curl.h>
-#endif
+#include <gio/gio.h>
 #ifdef HAVE_GIO_UNIX
 #include <gio/gunixfdlist.h>
 #endif
@@ -76,6 +74,7 @@ typedef struct {
 	gboolean only_trusted;
 	GMutex proxy_mutex; /* for @proxy */
 	GDBusProxy *proxy;
+	gchar *proxy_name_owner;
 	GProxyResolver *proxy_resolver;
 	gchar *package_name;
 	gchar *package_version;
@@ -84,14 +83,12 @@ typedef struct {
 	GHashTable *immediate_requests; /* str:FwupdRequest */
 } FwupdClientPrivate;
 
-#ifdef HAVE_LIBCURL
 typedef struct {
 	GPtrArray *urls;
 	CURL *curl;
 	curl_mime *mime;
 	struct curl_slist *headers;
 } FwupdCurlHelper;
-#endif
 
 enum {
 	SIGNAL_CHANGED,
@@ -126,7 +123,6 @@ static guint signals[SIGNAL_LAST] = {0};
 G_DEFINE_TYPE_WITH_PRIVATE(FwupdClient, fwupd_client, G_TYPE_OBJECT)
 #define GET_PRIVATE(o) (fwupd_client_get_instance_private(o))
 
-#ifdef HAVE_LIBCURL
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURLU, curl_url_cleanup)
 typedef char CURLSTR;
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURLSTR, curl_free)
@@ -146,7 +142,6 @@ fwupd_client_curl_helper_free(FwupdCurlHelper *helper)
 }
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(FwupdCurlHelper, fwupd_client_curl_helper_free)
-#endif
 
 typedef struct {
 	FwupdClient *self;
@@ -199,9 +194,13 @@ fwupd_client_context_idle_cb(gpointer user_data)
 		if (g_strcmp0(helper->property_name, "FwupdRequest") == 0)
 			fwupd_request_emit_invalidate(FWUPD_REQUEST(helper->payload));
 
-		/* payload signal */
-		if (helper->signal_id != 0 && helper->payload != NULL)
-			g_signal_emit(self, signals[helper->signal_id], 0, helper->payload);
+		/* signal */
+		if (helper->signal_id != 0) {
+			if (helper->payload == NULL)
+				g_signal_emit(self, signals[helper->signal_id], 0);
+			else
+				g_signal_emit(self, signals[helper->signal_id], 0, helper->payload);
+		}
 	}
 
 	/* all done */
@@ -288,6 +287,26 @@ fwupd_client_signal_emit_object(FwupdClient *self, guint signal_id, GObject *pay
 	helper->self = g_object_ref(self);
 	helper->signal_id = signal_id;
 	helper->payload = g_object_ref(payload);
+	fwupd_client_context_helper(self, helper);
+}
+
+/* run callback in the correct thread */
+static void
+fwupd_client_signal_emit_changed(FwupdClient *self)
+{
+	FwupdClientPrivate *priv = GET_PRIVATE(self);
+	FwupdClientContextHelper *helper = NULL;
+
+	/* shortcut */
+	if (g_main_context_is_owner(priv->main_ctx)) {
+		g_signal_emit(self, signals[SIGNAL_CHANGED], 0);
+		return;
+	}
+
+	/* run in the correct GMainContext and thread */
+	helper = g_new0(FwupdClientContextHelper, 1);
+	helper->self = g_object_ref(self);
+	helper->signal_id = SIGNAL_CHANGED;
 	fwupd_client_context_helper(self, helper);
 }
 
@@ -635,6 +654,37 @@ fwupd_client_properties_changed_cb(GDBusProxy *proxy,
 }
 
 static void
+fwupd_client_update_proxy_name_owner(FwupdClient *self)
+{
+	FwupdClientPrivate *priv = GET_PRIVATE(self);
+	g_autofree gchar *name_owner = g_dbus_proxy_get_name_owner(priv->proxy);
+
+	/* same */
+	if (g_strcmp0(priv->proxy_name_owner, name_owner) == 0)
+		return;
+
+	/* fwupd replaced, started, or quit */
+	if (name_owner != NULL && priv->proxy_name_owner != NULL) {
+		fwupd_client_set_status(self, FWUPD_STATUS_SHUTDOWN);
+		fwupd_client_signal_emit_changed(self);
+	} else if (name_owner != NULL && priv->proxy_name_owner == NULL) {
+		fwupd_client_signal_emit_changed(self);
+	} else if (name_owner == NULL && priv->proxy_name_owner != NULL) {
+		fwupd_client_set_status(self, FWUPD_STATUS_SHUTDOWN);
+	}
+
+	/* save so we can detect when the daemon is replaced */
+	g_free(priv->proxy_name_owner);
+	priv->proxy_name_owner = g_steal_pointer(&name_owner);
+}
+
+static void
+fwupd_client_name_owner_changed_cb(GDBusProxy *proxy, GParamSpec *pspec, FwupdClient *self)
+{
+	fwupd_client_update_proxy_name_owner(self);
+}
+
+static void
 fwupd_client_signal_cb(GDBusProxy *proxy,
 		       const gchar *sender_name,
 		       const gchar *signal_name,
@@ -646,7 +696,7 @@ fwupd_client_signal_cb(GDBusProxy *proxy,
 	g_autoptr(GError) error = NULL;
 	if (g_strcmp0(signal_name, "Changed") == 0) {
 		g_debug("Emitting ::changed()");
-		g_signal_emit(self, signals[SIGNAL_CHANGED], 0);
+		fwupd_client_signal_emit_changed(self);
 		return;
 	}
 	if (g_strcmp0(signal_name, "DeviceAdded") == 0) {
@@ -789,7 +839,6 @@ fwupd_client_ensure_networking(FwupdClient *self, GError **error)
 	return TRUE;
 }
 
-#ifdef HAVE_LIBCURL
 static int
 fwupd_client_progress_callback_cb(void *clientp,
 				  curl_off_t dltotal,
@@ -878,7 +927,6 @@ fwupd_client_curl_new(FwupdClient *self, GError **error)
 	(void)curl_easy_setopt(helper->curl, CURLOPT_HTTP_CONTENT_DECODING, 0L);
 	return g_steal_pointer(&helper);
 }
-#endif
 
 static void
 fwupd_client_set_hints_cb(GObject *source, GAsyncResult *res, gpointer user_data)
@@ -940,6 +988,7 @@ fwupd_client_connect_get_proxy_cb(GObject *source, GAsyncResult *res, gpointer u
 		return;
 	}
 	priv->proxy = g_steal_pointer(&proxy);
+	fwupd_client_update_proxy_name_owner(self);
 
 	/* connect signals, etc. */
 	g_signal_connect(G_DBUS_PROXY(priv->proxy),
@@ -949,6 +998,10 @@ fwupd_client_connect_get_proxy_cb(GObject *source, GAsyncResult *res, gpointer u
 	g_signal_connect(G_DBUS_PROXY(priv->proxy),
 			 "g-signal",
 			 G_CALLBACK(fwupd_client_signal_cb),
+			 self);
+	g_signal_connect(G_DBUS_PROXY(priv->proxy),
+			 "notify::g-name-owner",
+			 G_CALLBACK(fwupd_client_name_owner_changed_cb),
 			 self);
 	val = g_dbus_proxy_get_cached_property(priv->proxy, "DaemonVersion");
 	if (val != NULL)
@@ -3416,13 +3469,8 @@ fwupd_client_install_release_download_cb(GObject *source, GAsyncResult *res, gpo
 static gboolean
 fwupd_client_is_url_http(const gchar *perhaps_url)
 {
-#ifdef HAVE_LIBCURL
 	g_autoptr(CURLU) h = curl_url();
 	return curl_url_set(h, CURLUPART_URL, perhaps_url, 0) == CURLUE_OK;
-#else
-	return g_str_has_prefix(perhaps_url, "http://") ||
-	       g_str_has_prefix(perhaps_url, "https://");
-#endif
 }
 
 static gboolean
@@ -3436,19 +3484,12 @@ fwupd_client_is_url_ipfs(const gchar *perhaps_url)
 static gboolean
 fwupd_client_is_localhost(const gchar *url)
 {
-#ifdef HAVE_LIBCURL
 	g_autoptr(CURLU) h = curl_url();
 	g_autoptr(CURLSTR) hostname = NULL;
 	if (curl_url_set(h, CURLUPART_URL, url, 0) != CURLUE_OK)
 		return FALSE;
 	(void)curl_url_get(h, CURLUPART_HOST, &hostname, 0);
 	return g_strcmp0(hostname, "localhost") == 0;
-#else
-	if (g_str_has_prefix(url, "https://localhost/") ||
-	    g_str_has_prefix(url, "https://localhost:"))
-		return TRUE;
-	return FALSE;
-#endif
 }
 
 static gboolean
@@ -3565,7 +3606,6 @@ fwupd_client_install_release_remote_cb(GObject *source, GAsyncResult *res, gpoin
 					   g_steal_pointer(&task));
 }
 
-#ifdef HAVE_LIBCURL
 static GPtrArray *
 fwupd_client_filter_locations(GPtrArray *locations,
 			      FwupdClientDownloadFlags download_flags,
@@ -3592,7 +3632,6 @@ fwupd_client_filter_locations(GPtrArray *locations,
 	}
 	return g_steal_pointer(&uris_filtered);
 }
-#endif
 
 /**
  * fwupd_client_install_release_async:
@@ -5483,7 +5522,6 @@ fwupd_client_set_user_agent_for_package(FwupdClient *self,
 	fwupd_client_rebuild_user_agent(self);
 }
 
-#ifdef HAVE_LIBCURL
 static size_t
 fwupd_client_download_write_callback_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
 {
@@ -5643,7 +5681,28 @@ static GBytes *
 fwupd_client_download_http_retry(FwupdClient *self, CURL *curl, const gchar *url, GError **error)
 {
 	FwupdClientPrivate *priv = GET_PRIVATE(self);
+	GNetworkMonitor *monitor = g_network_monitor_get_default();
 	gulong delay_ms = 2500;
+	g_autoptr(GError) error_monitor = NULL;
+	g_autoptr(GSocketConnectable) address = NULL;
+	g_autoptr(GUri) uri = NULL;
+
+	/* test if we can reach this network */
+	uri = g_uri_parse(url, G_URI_FLAGS_NONE, error);
+	if (uri == NULL)
+		return NULL;
+	address = g_network_address_parse(g_uri_get_host(uri), g_uri_get_port(uri), error);
+	if (address == NULL)
+		return NULL;
+	if (!g_network_monitor_can_reach(monitor, address, NULL, &error_monitor)) {
+		g_set_error(error,
+			    FWUPD_ERROR,
+			    FWUPD_ERROR_NOT_REACHABLE,
+			    "network is unreachable: %s",
+			    error_monitor->message);
+		return NULL;
+	}
+
 	for (guint i = 0;; i++, delay_ms *= 2) {
 		g_autoptr(GBytes) blob = NULL;
 		g_autoptr(GError) error_local = NULL;
@@ -5704,7 +5763,6 @@ fwupd_client_download_bytes_thread_cb(GTask *task,
 	}
 	g_task_return_pointer(task, g_steal_pointer(&blob), (GDestroyNotify)g_bytes_unref);
 }
-#endif
 
 /* private */
 void
@@ -5716,10 +5774,8 @@ fwupd_client_download_bytes2_async(FwupdClient *self,
 				   gpointer callback_data)
 {
 	g_autoptr(GTask) task = NULL;
-#ifdef HAVE_LIBCURL
 	g_autoptr(GError) error = NULL;
 	g_autoptr(FwupdCurlHelper) helper = NULL;
-#endif
 
 	g_return_if_fail(FWUPD_IS_CLIENT(self));
 	g_return_if_fail(urls != NULL);
@@ -5727,7 +5783,6 @@ fwupd_client_download_bytes2_async(FwupdClient *self,
 
 	/* ensure networking set up */
 	task = g_task_new(self, cancellable, callback, callback_data);
-#ifdef HAVE_LIBCURL
 	helper = fwupd_client_curl_new(self, &error);
 	if (helper == NULL) {
 		g_task_return_error(task, g_steal_pointer(&error));
@@ -5744,9 +5799,6 @@ fwupd_client_download_bytes2_async(FwupdClient *self,
 
 	/* download data */
 	g_task_run_in_thread(task, fwupd_client_download_bytes_thread_cb);
-#else
-	g_task_return_new_error(task, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED, "no libcurl support");
-#endif
 }
 
 /**
@@ -5810,7 +5862,6 @@ fwupd_client_download_bytes_finish(FwupdClient *self, GAsyncResult *res, GError 
 	return g_task_propagate_pointer(G_TASK(res), error);
 }
 
-#ifdef HAVE_LIBCURL
 static void
 fwupd_client_upload_bytes_thread_cb(GTask *task,
 				    gpointer source_object,
@@ -5854,7 +5905,6 @@ fwupd_client_upload_bytes_thread_cb(GTask *task,
 			      g_bytes_new(buf->data, buf->len),
 			      (GDestroyNotify)g_bytes_unref);
 }
-#endif
 
 /**
  * fwupd_client_upload_bytes_async:
@@ -5891,10 +5941,8 @@ fwupd_client_upload_bytes_async(FwupdClient *self,
 {
 	FwupdClientPrivate *priv = GET_PRIVATE(self);
 	g_autoptr(GTask) task = NULL;
-#ifdef HAVE_LIBCURL
 	g_autoptr(FwupdCurlHelper) helper = NULL;
 	g_autoptr(GError) error = NULL;
-#endif
 
 	g_return_if_fail(FWUPD_IS_CLIENT(self));
 	g_return_if_fail(url != NULL);
@@ -5904,7 +5952,6 @@ fwupd_client_upload_bytes_async(FwupdClient *self,
 
 	/* ensure networking set up */
 	task = g_task_new(self, cancellable, callback, callback_data);
-#ifdef HAVE_LIBCURL
 	helper = fwupd_client_curl_new(self, &error);
 	if (helper == NULL) {
 		g_task_return_error(task, g_steal_pointer(&error));
@@ -5948,9 +5995,6 @@ fwupd_client_upload_bytes_async(FwupdClient *self,
 			     g_steal_pointer(&helper),
 			     (GDestroyNotify)fwupd_client_curl_helper_free);
 	g_task_run_in_thread(task, fwupd_client_upload_bytes_thread_cb);
-#else
-	g_task_return_new_error(task, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED, "no libcurl support");
-#endif
 }
 
 /**
@@ -7615,6 +7659,7 @@ fwupd_client_finalize(GObject *object)
 	g_free(priv->host_product);
 	g_free(priv->host_machine_id);
 	g_free(priv->host_security_id);
+	g_free(priv->proxy_name_owner);
 	g_hash_table_unref(priv->hints);
 	g_hash_table_unref(priv->immediate_requests);
 	g_mutex_clear(&priv->idle_mutex);

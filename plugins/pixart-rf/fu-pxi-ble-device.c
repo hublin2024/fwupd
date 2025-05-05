@@ -36,13 +36,6 @@
 
 #define FU_PXI_BLE_DEVICE_SET_REPORT_RETRIES 30
 
-/* OTA target selection */
-enum ota_process_setting {
-	OTA_MAIN_FW,	       /* Main firmware */
-	OTA_HELPER_FW,	       /* Helper firmware */
-	OTA_EXTERNAL_RESOURCE, /* External resource */
-};
-
 struct _FuPxiBleDevice {
 	FuHidrawDevice parent_instance;
 	struct ota_fw_state fwstate;
@@ -88,7 +81,7 @@ static FuFirmware *
 fu_pxi_ble_device_prepare_firmware(FuDevice *device,
 				   GInputStream *stream,
 				   FuProgress *progress,
-				   FwupdInstallFlags flags,
+				   FuFirmwareParseFlags flags,
 				   GError **error)
 {
 	FuPxiBleDevice *self = FU_PXI_BLE_DEVICE(device);
@@ -116,7 +109,7 @@ fu_pxi_ble_device_prepare_firmware(FuDevice *device,
 
 		/* check is compatible with hardware */
 		model_name = fu_pxi_firmware_get_model_name(FU_PXI_FIRMWARE(firmware));
-		if ((flags & FWUPD_INSTALL_FLAG_IGNORE_VID_PID) == 0) {
+		if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_VID_PID) == 0) {
 			if (self->model_name == NULL || model_name == NULL) {
 				g_set_error_literal(error,
 						    FWUPD_ERROR,
@@ -296,7 +289,11 @@ fu_pxi_ble_device_check_support_report_id(FuPxiBleDevice *self, GError **error)
 
 	/* parse the descriptor, but use the defaults if it fails */
 	fw = g_bytes_new(rpt_desc.value, rpt_desc.size);
-	if (!fu_firmware_parse_bytes(descriptor, fw, 0x0, FWUPD_INSTALL_FLAG_NONE, &error_local)) {
+	if (!fu_firmware_parse_bytes(descriptor,
+				     fw,
+				     0x0,
+				     FU_FIRMWARE_PARSE_FLAG_NONE,
+				     &error_local)) {
 		g_debug("failed to parse descriptor: %s", error_local->message);
 		return TRUE;
 	}
@@ -504,7 +501,7 @@ fu_pxi_ble_device_fw_object_create(FuPxiBleDevice *self, FuChunk *chk, GError **
 			    FWUPD_ERROR_READ,
 			    "FwObjectCreate opcode got 0x%02x, expected 0x%02x",
 			    opcode,
-			    FU_PXI_DEVICE_CMD_FW_OBJECT_CREATE);
+			    (guint)FU_PXI_DEVICE_CMD_FW_OBJECT_CREATE);
 		return FALSE;
 	}
 
@@ -594,7 +591,7 @@ fu_pxi_ble_device_reset(FuPxiBleDevice *self, GError **error)
 	g_autoptr(GByteArray) req = g_byte_array_new();
 	fu_byte_array_append_uint8(req, self->feature_report_id);
 	fu_byte_array_append_uint8(req, FU_PXI_DEVICE_CMD_FW_MCU_RESET); /* OTA reset command */
-	fu_byte_array_append_uint8(req, OTA_RESET);			 /* OTA reset reason  */
+	fu_byte_array_append_uint8(req, FU_PXI_OTA_DISCONNECT_REASON_RESET);
 
 	if (!fu_pxi_ble_device_set_feature(self, req, error)) {
 		g_prefix_error(error, "failed to reset: ");
@@ -977,6 +974,7 @@ static void
 fu_pxi_ble_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");

@@ -63,10 +63,6 @@ with open("Dockerfile", "w") as wfd:
                 )
             elif OS == "arch":
                 wfd.write("RUN pacman -Syu --noconfirm --needed\\\n")
-            elif OS == "void":
-                wfd.write(
-                    "RUN xbps-install -Suy xbps && xbps-install -uy && xbps-install -y \\\n"
-                )
             for i in range(0, len(deps)):
                 if i < len(deps) - 1:
                     wfd.write(f"\t{deps[i]} \\\n")
@@ -81,7 +77,7 @@ with open("Dockerfile", "w") as wfd:
                 # add new architecture
                 wfd.write(f"RUN dpkg --add-architecture {SUBOS}\n")
         elif line == "%%%OS%%%\n":
-            wfd.write(f"ENV OS {TARGET}\n")
+            wfd.write(f"ENV OS={TARGET}\n")
         else:
             wfd.write(line)
     wfd.flush()

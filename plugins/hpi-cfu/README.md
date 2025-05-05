@@ -1,6 +1,10 @@
+---
+title: Plugin: HPI CFU
+---
+
 ## Introduction
 
-The plugin used for updating firmware on HP Fleetwood and Hendrix docking stations.
+The plugin used for updating firmware on HP USB 4 100W G6 Dock and HP Thunderbolt 4 Ultra 180W/280W G6 Dock.
 
 This plugin supports the following protocol ID:
 

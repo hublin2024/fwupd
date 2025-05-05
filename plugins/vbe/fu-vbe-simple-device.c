@@ -216,7 +216,7 @@ static FuFirmware *
 fu_vbe_simple_device_prepare_firmware(FuDevice *device,
 				      GInputStream *stream,
 				      FuProgress *progress,
-				      FwupdInstallFlags flags,
+				      FuFirmwareParseFlags flags,
 				      GError **error)
 {
 	FuVbeSimpleDevice *self = FU_VBE_SIMPLE_DEVICE(device);
@@ -444,6 +444,7 @@ static void
 fu_vbe_simple_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
@@ -464,7 +465,7 @@ static void
 fu_vbe_simple_device_constructed(GObject *obj)
 {
 	FuVbeSimpleDevice *self = FU_VBE_SIMPLE_DEVICE(obj);
-	fu_device_add_guid(FU_DEVICE(self), "bb3b05a8-ebef-11ec-be98-d3a15278be95");
+	fu_device_add_instance_id(FU_DEVICE(self), "bb3b05a8-ebef-11ec-be98-d3a15278be95");
 }
 
 static void

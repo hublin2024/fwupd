@@ -415,6 +415,7 @@ fu_vli_usbhub_device_attach(FuDevice *device, FuProgress *progress, GError **err
 						    NULL,
 						    &error_local)) {
 			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOT_FOUND) ||
+			    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_READ) ||
 			    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_TIMED_OUT) ||
 			    g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_INTERNAL)) {
 				g_debug("ignoring %s", error_local->message);
@@ -860,7 +861,7 @@ static FuFirmware *
 fu_vli_usbhub_device_prepare_firmware(FuDevice *device,
 				      GInputStream *stream,
 				      FuProgress *progress,
-				      FwupdInstallFlags flags,
+				      FuFirmwareParseFlags flags,
 				      GError **error)
 {
 	FuVliUsbhubDevice *self = FU_VLI_USBHUB_DEVICE(device);
@@ -1277,6 +1278,14 @@ fu_vli_usbhub_device_update_v3(FuVliUsbhubDevice *self,
 		return FALSE;
 	hd2_fw_sz = (fu_struct_vli_usbhub_hdr_get_usb3_fw_sz_high(st_hd) << 16);
 	hd2_fw_sz += fu_struct_vli_usbhub_hdr_get_usb3_fw_sz(st_hd);
+	if (hd2_fw_sz == 0 || hd2_fw_sz > 0x40000) {
+		g_set_error(error,
+			    FWUPD_ERROR,
+			    FWUPD_ERROR_INVALID_DATA,
+			    "FW2 size abnormal 0x%x",
+			    (guint)hd2_fw_sz);
+		return FALSE;
+	}
 	hd2_fw_offset = (fu_struct_vli_usbhub_hdr_get_usb3_fw_addr_high(st_hd) << 16);
 	hd2_fw_offset += fu_struct_vli_usbhub_hdr_get_usb3_fw_addr(st_hd);
 	g_debug("FW2 @0x%x (length 0x%x, offset 0x%x)", hd2_fw_addr, hd2_fw_sz, hd2_fw_offset);
@@ -1387,6 +1396,7 @@ static void
 fu_vli_usbhub_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 92, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "attach");

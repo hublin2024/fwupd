@@ -1,7 +1,8 @@
 [Unit]
 Description=Firmware update daemon
 Documentation=https://fwupd.org/
-After=dbus.service
+Wants=modprobe@sd_mod.service
+After=modprobe@sd_mod.service dbus.service
 Before=display-manager.service
 ConditionVirtualization=!container
 
@@ -32,4 +33,5 @@ RestrictRealtime=yes
 RestrictSUIDSGID=yes
 SystemCallArchitectures=native
 Environment="GLIBC_TUNABLES=glibc.cpu.hwcaps=SHSTK"
+RestrictAddressFamilies=AF_NETLINK AF_UNIX AF_INET AF_INET6
 @dynamic_options@

@@ -4,8 +4,10 @@ fwupdplugin_structs = [
   'fu-acpi-table.rs', # fuzzing
   'fu-archive.rs', # fuzzing
   'fu-cab.rs', # fuzzing
+  'fu-cfi.rs', # fuzzing
   'fu-cfu-firmware.rs', # fuzzing
   'fu-coswid.rs', # fuzzing
+  'fu-device.rs', # fuzzing
   'fu-dfu-firmware.rs', # fuzzing
   'fu-dpaux.rs', # fuzzing
   'fu-edid.rs', # fuzzing
@@ -16,11 +18,14 @@ fwupdplugin_structs = [
   'fu-hid.rs', # fuzzing
   'fu-ifd.rs', # fuzzing
   'fu-ifwi.rs', # fuzzing
+  'fu-ihex.rs', # fuzzing
   'fu-intel-thunderbolt.rs', # fuzzing
   'fu-io-channel.rs', # fuzzing
+  'fu-heci.rs', # fuzzing
   'fu-msgpack.rs', # fuzzing
   'fu-oprom.rs', # fuzzing
   'fu-pefile.rs', # fuzzing
+  'fu-pci.rs', # fuzzing
   'fu-sbatlevel-section.rs', # fuzzing
   'fu-smbios.rs', # fuzzing
   'fu-usb-device-ds20.rs', # fuzzing
@@ -99,7 +104,10 @@ fwupdplugin_src = [
   'fu-efi-load-option.c', # fuzzing
   'fu-efi-signature.c',
   'fu-efi-signature-list.c',
+  'fu-efi-variable-authentication2.c',
   'fu-efivars.c', # fuzzing
+  'fu-efi-x509-device.c',
+  'fu-efi-x509-signature.c',
   'fu-elf-firmware.c', # fuzzing
   'fu-fdt-firmware.c', # fuzzing
   'fu-fdt-image.c', # fuzzing
@@ -134,10 +142,12 @@ fwupdplugin_src = [
   'fu-ioctl.c', # fuzzing
   'fu-kenv.c', # fuzzing
   'fu-kernel.c', # fuzzing
+  'fu-kernel-search-path.c', # fuzzing
   'fu-linear-firmware.c',
   'fu-lzma-common.c', # fuzzing
   'fu-mei-device.c',
   'fu-mem.c', # fuzzing
+  'fu-heci-device.c',
   'fu-msgpack.c',
   'fu-msgpack-item.c',
   'fu-oprom-firmware.c', # fuzzing
@@ -145,6 +155,8 @@ fwupdplugin_src = [
   'fu-path.c', # fuzzing
   'fu-pefile-firmware.c', # fuzzing
   'fu-pci-device.c',
+  'fu-pkcs7.c',
+  'fu-oprom-device.c',
   'fu-plugin.c',
   'fu-progress.c', # fuzzing
   'fu-quirks.c', # fuzzing
@@ -157,6 +169,7 @@ fwupdplugin_src = [
   'fu-string.c', # fuzzing
   'fu-sum.c', # fuzzing
   'fu-udev-device.c', # fuzzing
+  'fu-uefi-device.c',
   'fu-usb-bos-descriptor.c',
   'fu-usb-config-descriptor.c',
   'fu-usb-descriptor.c',
@@ -171,6 +184,7 @@ fwupdplugin_src = [
   'fu-version-common.c', # fuzzing
   'fu-v4l-device.c',
   'fu-volume.c', # fuzzing
+  'fu-x509-certificate.c',
 ]
 
 if host_machine.system() in ['linux', 'android']
@@ -241,7 +255,10 @@ fwupdplugin_headers = [
   'fu-efi-load-option.h',
   'fu-efi-signature.h',
   'fu-efi-signature-list.h',
+  'fu-efi-variable-authentication2.h',
   'fu-efivars.h',
+  'fu-efi-x509-device.h',
+  'fu-efi-x509-signature.h',
   'fu-elf-firmware.h',
   'fu-endian.h',
   'fu-fdt-firmware.h',
@@ -250,6 +267,7 @@ fwupdplugin_headers = [
   'fu-firmware.h',
   'fu-fit-firmware.h',
   'fu-fmap-firmware.h',
+  'fu-heci-device.h',
   'fu-hid-descriptor.h',
   'fu-hid-device.h',
   'fu-hid-report.h',
@@ -270,17 +288,20 @@ fwupdplugin_headers = [
   'fu-ioctl.h',
   'fu-kenv.h',
   'fu-kernel.h',
+  'fu-kernel-search-path.h',
   'fu-linear-firmware.h',
   'fu-mei-device.h',
   'fu-mem.h',
   'fu-mem-private.h',
   'fu-msgpack-item.h',
+  'fu-oprom-device.h',
   'fu-oprom-firmware.h',
   'fu-partial-input-stream.h',
   'fu-partial-input-stream-private.h',
   'fu-path.h',
   'fu-pefile-firmware.h',
   'fu-pci-device.h',
+  'fu-pkcs7.h',
   'fu-plugin.h',
   'fu-plugin-private.h',
   'fu-progress.h',
@@ -297,6 +318,8 @@ fwupdplugin_headers = [
   'fu-sum.h',
   'fu-udev-device.h',
   'fu-udev-device-private.h',
+  'fu-uefi-device.h',
+  'fu-uefi-device-private.h',
   'fu-usb-device-ds20.h',
   'fu-usb-device-fw-ds20.h',
   'fu-usb-bos-descriptor.h',
@@ -316,6 +339,7 @@ fwupdplugin_headers = [
   'fu-v4l-device.h',
   'fu-version-common.h',
   'fu-volume.h',
+  'fu-x509-certificate.h',
 ]
 
 introspection_deps = [
@@ -347,6 +371,7 @@ library_deps = [
   sqlite,
   libblkid,
   libdrm,
+  gnutls,
   platform_deps,
 ]
 

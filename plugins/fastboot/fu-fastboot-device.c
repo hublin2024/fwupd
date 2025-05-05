@@ -540,17 +540,23 @@ fu_fastboot_device_write_motorola(FuDevice *device,
 	data = fu_firmware_get_image_by_id_bytes(firmware, "flashfile.xml", error);
 	if (data == NULL)
 		return FALSE;
-	if (!xb_builder_source_load_bytes(source, data, XB_BUILDER_SOURCE_FLAG_NONE, error))
+	if (!xb_builder_source_load_bytes(source, data, XB_BUILDER_SOURCE_FLAG_NONE, error)) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	xb_builder_import_source(builder, source);
 	silo = xb_builder_compile(builder, XB_BUILDER_COMPILE_FLAG_NONE, NULL, error);
-	if (silo == NULL)
+	if (silo == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 
 	/* get all the operation parts */
 	parts = xb_silo_query(silo, "parts/part", 0, error);
-	if (parts == NULL)
+	if (parts == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_set_steps(progress, parts->len);
 	for (guint i = 0; i < parts->len; i++) {
@@ -584,17 +590,23 @@ fu_fastboot_device_write_qfil(FuDevice *device,
 	data = fu_firmware_get_image_by_id_bytes(firmware, "partition_nand.xml", error);
 	if (data == NULL)
 		return FALSE;
-	if (!xb_builder_source_load_bytes(source, data, XB_BUILDER_SOURCE_FLAG_NONE, error))
+	if (!xb_builder_source_load_bytes(source, data, XB_BUILDER_SOURCE_FLAG_NONE, error)) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	xb_builder_import_source(builder, source);
 	silo = xb_builder_compile(builder, XB_BUILDER_COMPILE_FLAG_NONE, NULL, error);
-	if (silo == NULL)
+	if (silo == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 
 	/* get all the operation parts */
 	parts = xb_silo_query(silo, "nandboot/partitions/partition", 0, error);
-	if (parts == NULL)
+	if (parts == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_set_steps(progress, parts->len);
 	for (guint i = 0; i < parts->len; i++) {
@@ -685,11 +697,11 @@ static void
 fu_fastboot_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
-	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
-	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "detach");
-	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 94, "write");
-	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "attach");
-	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_BUSY, 2, "reload");
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
+	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 1, "detach");
+	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 97, "write");
+	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 1, "attach");
+	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_BUSY, 1, "reload");
 }
 
 static void
@@ -704,9 +716,9 @@ fu_fastboot_device_init(FuFastbootDevice *self)
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_IS_BOOTLOADER);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ADD_COUNTERPART_GUIDS);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_REPLUG_MATCH_GUID);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_set_remove_delay(FU_DEVICE(self), FASTBOOT_REMOVE_DELAY_RE_ENUMERATE);
 	fu_device_set_firmware_gtype(FU_DEVICE(self), FU_TYPE_ARCHIVE_FIRMWARE);
+	fu_usb_device_set_claim_retry_count(FU_USB_DEVICE(self), 5);
 }
 
 static void

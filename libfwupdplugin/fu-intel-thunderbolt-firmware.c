@@ -39,7 +39,7 @@ fu_intel_thunderbolt_firmware_nvm_valid_farb_pointer(guint32 pointer)
 static gboolean
 fu_intel_thunderbolt_firmware_parse(FuFirmware *firmware,
 				    GInputStream *stream,
-				    FwupdInstallFlags flags,
+				    FuFirmwareParseFlags flags,
 				    GError **error)
 {
 	const guint32 farb_offsets[] = {0x0, 0x1000};
@@ -72,8 +72,10 @@ fu_intel_thunderbolt_firmware_parse(FuFirmware *firmware,
 
 	/* FuIntelThunderboltNvm->parse */
 	partial_stream = fu_partial_input_stream_new(stream, farb_pointer, G_MAXSIZE, error);
-	if (partial_stream == NULL)
+	if (partial_stream == NULL) {
+		g_prefix_error(error, "failed to cut from NVM: ");
 		return FALSE;
+	}
 	return FU_FIRMWARE_CLASS(fu_intel_thunderbolt_firmware_parent_class)
 	    ->parse(firmware, partial_stream, flags, error);
 }

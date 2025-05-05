@@ -1138,7 +1138,7 @@ static FuFirmware *
 fu_parade_usbhub_device_prepare_firmware(FuDevice *device,
 					 GInputStream *stream,
 					 FuProgress *progress,
-					 FwupdInstallFlags flags,
+					 FuFirmwareParseFlags flags,
 					 GError **error)
 {
 	g_autoptr(FuFirmware) firmware = fu_parade_usbhub_firmware_new();
@@ -1219,6 +1219,7 @@ static void
 fu_parade_usbhub_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 96, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "attach");
@@ -1266,9 +1267,7 @@ fu_parade_usbhub_device_init(FuParadeUsbhubDevice *self)
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_SIGNED_PAYLOAD);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_SELF_RECOVERY);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_DUAL_IMAGE);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_add_request_flag(FU_DEVICE(self), FWUPD_REQUEST_FLAG_ALLOW_GENERIC_MESSAGE);
-	fu_usb_device_add_interface(FU_USB_DEVICE(self), 0);
 }
 
 static void

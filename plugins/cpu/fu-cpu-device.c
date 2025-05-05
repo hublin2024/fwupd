@@ -313,6 +313,15 @@ fu_cpu_device_set_quirk_kv(FuDevice *device, const gchar *key, const gchar *valu
 		fu_device_set_metadata(device, "CpuMitigationsRequired", value);
 		return TRUE;
 	}
+	if (g_strcmp0(key, "CpuSinkcloseMicrocodeVersion") == 0) {
+		guint64 tmp = 0;
+		if (!fu_strtoull(value, &tmp, 0, G_MAXUINT32, FU_INTEGER_BASE_16, error))
+			return FALSE;
+		fu_device_set_metadata_integer(device,
+					       FU_DEVICE_METADATA_CPU_SINKCLOSE_MICROCODE_VER,
+					       tmp);
+		return TRUE;
+	}
 	g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED, "no supported");
 	return FALSE;
 }
@@ -429,6 +438,7 @@ fu_cpu_device_add_security_attrs_smap(FuCpuDevice *self, FuSecurityAttrs *attrs)
 	fwupd_security_attr_add_flag(attr, FWUPD_SECURITY_ATTR_FLAG_SUCCESS);
 }
 
+#ifdef HAVE_UTSNAME_H
 static void
 fu_cpu_device_add_x86_64_security_attrs(FuDevice *device, FuSecurityAttrs *attrs)
 {
@@ -441,6 +451,7 @@ fu_cpu_device_add_x86_64_security_attrs(FuDevice *device, FuSecurityAttrs *attrs
 	fu_cpu_device_add_security_attrs_cet_active(self, attrs);
 	fu_cpu_device_add_security_attrs_smap(self, attrs);
 }
+#endif
 
 static void
 fu_cpu_device_add_security_attrs(FuDevice *device, FuSecurityAttrs *attrs)

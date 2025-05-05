@@ -8,13 +8,11 @@
 
 #include "config.h"
 
+#include <curl/curl.h>
 #include <glib/gi18n.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <xmlb.h>
-#ifdef HAVE_LIBCURL
-#include <curl/curl.h>
-#endif
 
 #include "fu-console.h"
 #include "fu-device-private.h"
@@ -212,24 +210,11 @@ fu_util_update_shutdown(GError **error)
 					  -1,
 					  NULL,
 					  error);
-#elif defined(HAVE_CONSOLEKIT)
-	/* shutdown using ConsoleKit */
-	val = g_dbus_connection_call_sync(connection,
-					  "org.freedesktop.ConsoleKit",
-					  "/org/freedesktop/ConsoleKit/Manager",
-					  "org.freedesktop.ConsoleKit.Manager",
-					  "Stop",
-					  NULL,
-					  NULL,
-					  G_DBUS_CALL_FLAGS_NONE,
-					  -1,
-					  NULL,
-					  error);
 #else
 	g_set_error_literal(error,
 			    FWUPD_ERROR,
-			    FWUPD_ERROR_INVALID_ARGS,
-			    "No supported backend compiled in to perform the operation.");
+			    FWUPD_ERROR_NOT_SUPPORTED,
+			    "No way to perform the operation");
 #endif
 	return val != NULL;
 }
@@ -257,24 +242,11 @@ fu_util_update_reboot(GError **error)
 					  -1,
 					  NULL,
 					  error);
-#elif defined(HAVE_CONSOLEKIT)
-	/* reboot using ConsoleKit */
-	val = g_dbus_connection_call_sync(connection,
-					  "org.freedesktop.ConsoleKit",
-					  "/org/freedesktop/ConsoleKit/Manager",
-					  "org.freedesktop.ConsoleKit.Manager",
-					  "Restart",
-					  NULL,
-					  NULL,
-					  G_DBUS_CALL_FLAGS_NONE,
-					  -1,
-					  NULL,
-					  error);
 #else
 	g_set_error_literal(error,
 			    FWUPD_ERROR,
-			    FWUPD_ERROR_INVALID_ARGS,
-			    "No supported backend compiled in to perform the operation.");
+			    FWUPD_ERROR_NOT_SUPPORTED,
+			    "No way to perform the operation");
 #endif
 	return val != NULL;
 }
@@ -1249,11 +1221,11 @@ fu_util_device_problem_to_string(FwupdClient *client, FwupdDevice *dev, FwupdDev
 		if (fwupd_client_get_battery_level(client) == FWUPD_BATTERY_LEVEL_INVALID ||
 		    fwupd_client_get_battery_threshold(client) == FWUPD_BATTERY_LEVEL_INVALID) {
 			/* TRANSLATORS: as in laptop battery power */
-			return g_strdup(_("System power is too low to perform the update"));
+			return g_strdup(_("System power is too low"));
 		}
 		return g_strdup_printf(
 		    /* TRANSLATORS: as in laptop battery power */
-		    _("System power is too low to perform the update (%u%%, requires %u%%)"),
+		    _("System power is too low (%u%%, requires %u%%)"),
 		    fwupd_client_get_battery_level(client),
 		    fwupd_client_get_battery_threshold(client));
 	}
@@ -1426,7 +1398,6 @@ fu_util_device_to_string(FwupdClient *client, FwupdDevice *dev, guint idt)
 					  /* TRANSLATORS: hardware state, e.g. "pending" */
 					  _("Update State"),
 					  fu_util_update_state_to_string(state));
-
 	}
 
 	/* battery, but only if we're not about to show the same info as an inhibit */
@@ -1944,6 +1915,11 @@ fu_util_release_to_string(FwupdRelease *rel, guint idt)
 				  fwupd_release_get_source_url(rel));
 	fwupd_codec_string_append(str,
 				  idt + 1,
+				  /* TRANSLATORS: Software Bill of Materials link */
+				  _("SBOM"),
+				  fwupd_release_get_sbom_url(rel));
+	fwupd_codec_string_append(str,
+				  idt + 1,
 				  /* TRANSLATORS: manufacturer of hardware */
 				  _("Vendor"),
 				  fwupd_release_get_vendor(rel));
@@ -2121,6 +2097,11 @@ fu_util_remote_to_string(FwupdRemote *remote, guint idt)
 				  /* TRANSLATORS: remote URI */
 				  _("Metadata Signature"),
 				  fwupd_remote_get_metadata_uri_sig(remote));
+	fwupd_codec_string_append(str,
+				  idt + 1,
+				  /* TRANSLATORS: remote URI */
+				  _("Firmware Base URI"),
+				  fwupd_remote_get_firmware_base_uri(remote));
 	tmp = fwupd_remote_get_report_uri(remote);
 	if (tmp != NULL) {
 		/* TRANSLATORS: URI to send success/failure reports */
@@ -2415,6 +2396,32 @@ fu_util_security_event_to_string(FwupdSecurityAttr *attr)
 		      FWUPD_SECURITY_ATTR_RESULT_VALID,
 		      /* TRANSLATORS: HSI event title */
 		      _("TPM PCR0 reconstruction is now valid")},
+		     /* ------------------------------------------*/
+		     {FWUPD_SECURITY_ATTR_ID_UEFI_MEMORY_PROTECTION,
+		      FWUPD_SECURITY_ATTR_RESULT_NOT_ENABLED,
+		      FWUPD_SECURITY_ATTR_RESULT_NOT_LOCKED,
+		      /* TRANSLATORS: HSI event title */
+		      _("UEFI memory protection enabled but not locked")},
+		     {FWUPD_SECURITY_ATTR_ID_UEFI_MEMORY_PROTECTION,
+		      FWUPD_SECURITY_ATTR_RESULT_NOT_ENABLED,
+		      FWUPD_SECURITY_ATTR_RESULT_LOCKED,
+		      /* TRANSLATORS: HSI event title */
+		      _("UEFI memory protection enabled and locked")},
+		     {FWUPD_SECURITY_ATTR_ID_UEFI_MEMORY_PROTECTION,
+		      FWUPD_SECURITY_ATTR_RESULT_NOT_LOCKED,
+		      FWUPD_SECURITY_ATTR_RESULT_LOCKED,
+		      /* TRANSLATORS: HSI event title */
+		      _("UEFI memory protection is now locked")},
+		     {FWUPD_SECURITY_ATTR_ID_UEFI_MEMORY_PROTECTION,
+		      FWUPD_SECURITY_ATTR_RESULT_LOCKED,
+		      FWUPD_SECURITY_ATTR_RESULT_NOT_LOCKED,
+		      /* TRANSLATORS: HSI event title */
+		      _("UEFI memory protection is now unlocked")},
+		     {FWUPD_SECURITY_ATTR_ID_UEFI_DB,
+		      FWUPD_SECURITY_ATTR_RESULT_NOT_VALID,
+		      FWUPD_SECURITY_ATTR_RESULT_VALID,
+		      /* TRANSLATORS: HSI event title */
+		      _("The UEFI certificate store is now up to date")},
 		     {NULL, 0, 0, NULL}};
 
 	/* sanity check */
@@ -2818,20 +2825,13 @@ fu_util_modify_remote_warning(FuConsole *console,
 	return TRUE;
 }
 
-#ifdef HAVE_LIBCURL
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(CURLU, curl_url_cleanup)
-#endif
 
 gboolean
 fu_util_is_url(const gchar *perhaps_url)
 {
-#ifdef HAVE_LIBCURL
 	g_autoptr(CURLU) h = curl_url();
 	return curl_url_set(h, CURLUPART_URL, perhaps_url, 0) == CURLUE_OK;
-#else
-	return g_str_has_prefix(perhaps_url, "http://") ||
-	       g_str_has_prefix(perhaps_url, "https://");
-#endif
 }
 
 gboolean

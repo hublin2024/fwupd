@@ -13,7 +13,6 @@
 static void
 fu_test_synaprom_firmware_func(void)
 {
-	const gchar *ci = g_getenv("CI_NETWORK");
 	const guint8 *buf;
 	gboolean ret;
 	gsize sz = 0;
@@ -29,7 +28,7 @@ fu_test_synaprom_firmware_func(void)
 	g_autoptr(FuProgress) progress = fu_progress_new(G_STRLOC);
 
 	filename = g_test_build_filename(G_TEST_DIST, "tests", "test.pkg", NULL);
-	if (!g_file_test(filename, G_FILE_TEST_EXISTS) && ci == NULL) {
+	if (!g_file_test(filename, G_FILE_TEST_EXISTS)) {
 		g_test_skip("Missing test.pkg");
 		return;
 	}
@@ -40,7 +39,12 @@ fu_test_synaprom_firmware_func(void)
 	g_assert_cmpint(sz, ==, 294);
 	g_assert_cmpint(buf[0], ==, 0x01);
 	g_assert_cmpint(buf[1], ==, 0x00);
-	ret = fu_firmware_parse_bytes(firmware, fw, 0x0, FWUPD_INSTALL_FLAG_NO_SEARCH, &error);
+	ret =
+	    fu_firmware_parse_bytes(firmware,
+				    fw,
+				    0x0,
+				    FU_FIRMWARE_PARSE_FLAG_NO_SEARCH | FU_FIRMWARE_PARSE_FLAG_CACHE_STREAM,
+				    &error);
 	g_assert_no_error(error);
 	g_assert_true(ret);
 
@@ -68,7 +72,7 @@ fu_test_synaprom_firmware_func(void)
 	firmware2 = fu_synaprom_device_prepare_firmware(FU_DEVICE(device),
 							stream,
 							progress,
-							FWUPD_INSTALL_FLAG_NONE,
+							FU_FIRMWARE_PARSE_FLAG_CACHE_STREAM,
 							&error);
 	g_assert_no_error(error);
 	g_assert_nonnull(firmware2);

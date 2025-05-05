@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Richard hughes <Richard@hughsie.com>
+ * Copyright 2024 Richard Hughes <richard@hughsie.com>
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
@@ -17,7 +17,7 @@ G_DEFINE_TYPE(FuUefiSbatFirmware, fu_uefi_sbat_firmware, FU_TYPE_CSV_FIRMWARE)
 static gboolean
 fu_uefi_sbat_firmware_parse(FuFirmware *firmware,
 			    GInputStream *stream,
-			    FwupdInstallFlags flags,
+			    FuFirmwareParseFlags flags,
 			    GError **error)
 {
 	guint semver[] = {0, 0, 0};
@@ -70,7 +70,7 @@ fu_uefi_sbat_firmware_parse(FuFirmware *firmware,
 static gboolean
 fu_uefi_sbat_firmware_check_compatible(FuFirmware *firmware,
 				       FuFirmware *other,
-				       FwupdInstallFlags flags,
+				       FuFirmwareParseFlags flags,
 				       GError **error)
 {
 	g_autoptr(FuFirmware) esp_sbat = NULL;

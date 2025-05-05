@@ -59,15 +59,23 @@ if build_daemon
     install_dir: join_paths(datadir, 'dbus-1', 'system.d')
   )
 
+  build_conf = configuration_data()
+  build_conf.set('libexecdir', libexecdir)
+
   if libsystemd.found()
-    con2 = configuration_data()
-    con2.set('libexecdir', libexecdir)
-    con2.set('bindir', bindir)
-    con2.set('datadir', datadir)
-    con2.set('localstatedir', localstatedir)
+    build_conf.set('bindir', bindir)
+    build_conf.set('datadir', datadir)
+    build_conf.set('localstatedir', localstatedir)
+    build_conf.set('systemd_service', 'SystemdService=fwupd.service')
     rw_directories = []
     if allow_uefi_capsule
-      rw_directories += ['-/boot/efi', '-/efi/EFI', '-/boot/EFI', '-/boot/grub']
+      rw_directories += [
+        '-/boot/efi',
+        '-/boot/EFI',
+        '-/boot/grub',
+        '-/efi/EFI',
+        '-/sys/firmware/efi/efivars',
+      ]
     endif
 
     # not using ConfigurationDirectory further down
@@ -83,11 +91,6 @@ if build_daemon
       dynamic_options += 'StateDirectory=fwupd'
       dynamic_options += 'CacheDirectory=fwupd'
     endif
-    if not get_option('plugin_redfish').disabled()
-      dynamic_options += 'RestrictAddressFamilies=AF_NETLINK AF_UNIX AF_INET AF_INET6'
-    else
-      dynamic_options += 'RestrictAddressFamilies=AF_NETLINK AF_UNIX'
-    endif
 
     device_allows = [
       'block-sd',
@@ -96,20 +99,23 @@ if build_daemon
       'char-drm',
       'char-gpiochip',
       'char-hidraw',
+      'char-mei',
+      'char-tpm',
       'char-usb',
       'char-usb_device',
     ]
     if allow_flashrom
       device_allows += ['char-mem']
     endif
-    if get_option('plugin_nvme').allowed()
+    if cc.has_header('linux/nvme_ioctl.h', required: false)
       device_allows += ['char-nvme']
     endif
-    if get_option('plugin_tpm').allowed()
-      device_allows += ['char-tpm']
+    if allow_uefi_capsule
+      # for BLKSSZGET
+      device_allows += ['block-blkext']
     endif
-    if get_option('plugin_intel_me').allowed()
-      device_allows += ['char-mei']
+    if get_option('plugin_modem_manager').allowed()
+      device_allows += ['char-wwan_port']
     endif
     foreach device_allow: device_allows
       dynamic_options += ['DeviceAllow=' + device_allow + ' rw']
@@ -129,6 +135,7 @@ if build_daemon
       '@chown',   # for sqlite3Step
       'ioctl',
       'uname',
+      'fadvise64',
       'sysinfo',  # for sysconf
       'madvise',  # for mtrim
       'mremap',   # for g_realloc
@@ -137,6 +144,7 @@ if build_daemon
     if allow_flashrom
       syscall_filter += ['@raw-io']
     endif
+    dynamic_options += ['SystemCallFilter=' + ' '.join(syscall_filter)]
     if supported_build
       dynamic_options += ['Environment="FWUPD_SYSCALL_FILTER=systemd"']
       dynamic_options += ['SystemCallErrorNumber=EPERM']
@@ -144,18 +152,18 @@ if build_daemon
       # to debug what additional syscalls are required, we set SystemCallErrorNumber=SIGSYS
       # and then can do `coredumpctl debug` and get the syscall number with `(gdb) p $rax`
       dynamic_options += ['SystemCallErrorNumber=SIGSYS']
+    endif
+    if not supported_build
       dynamic_options += ['Environment="G_DEBUG=fatal-criticals"']
     endif
-    dynamic_options += ['SystemCallFilter=' + ' '.join(syscall_filter)]
-
-    con2.set('dynamic_options', '\n'.join(dynamic_options))
-    con2.set('motd_dir', motd_dir)
+    build_conf.set('dynamic_options', '\n'.join(dynamic_options))
+    build_conf.set('motd_dir', motd_dir)
 
     # replace @dynamic_options@
     configure_file(
       input: 'fwupd.service.in',
       output: 'fwupd.service',
-      configuration: con2,
+      configuration: build_conf,
       install: true,
       install_dir: systemdunitdir,
     )
@@ -164,29 +172,23 @@ if build_daemon
     configure_file(
       input: 'fwupd.shutdown.in',
       output: 'fwupd.shutdown',
-      configuration: con2,
+      configuration: build_conf,
       install: true,
       install_dir: systemd_shutdown_dir,
     )
+  else
+    build_conf.set('systemd_service', '')
   endif
 
-  if libsystemd.found() or elogind.found()
-    con2 = configuration_data()
-    con2.set('libexecdir', libexecdir)
+  configure_file(
+    input: 'org.freedesktop.fwupd.service.in',
+    output: 'org.freedesktop.fwupd.service',
+    configuration: build_conf,
+    install: true,
+    install_dir: join_paths(datadir, 'dbus-1', 'system-services'),
+  )
 
-    # replace @libexecdir@
-    configure_file(
-      input: 'org.freedesktop.fwupd.service.in',
-      output: 'org.freedesktop.fwupd.service',
-      configuration: con2,
-      install: true,
-      install_dir: join_paths(datadir,
-                              'dbus-1',
-                              'system-services'),
-    )
-  endif
-
-  if get_option('launchd').allowed() and launchctl.found()
+  if launchctl.found()
     con2 = configuration_data()
     con2.set('libexecdir', libexecdir)
     con2.set('dbus_socket_address', get_option('dbus_socket_address'))

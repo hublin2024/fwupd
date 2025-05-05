@@ -21,6 +21,33 @@ struct _FuPciMeiPlugin {
 
 G_DEFINE_TYPE(FuPciMeiPlugin, fu_pci_mei_plugin, FU_TYPE_PLUGIN)
 
+static void
+fu_pci_mei_plugin_to_string(FuPlugin *plugin, guint idt, GString *str)
+{
+	FuPciMeiPlugin *self = FU_PCI_MEI_PLUGIN(plugin);
+	if (self->pci_device) {
+		fwupd_codec_string_append(str,
+					  idt,
+					  "PciDevice",
+					  fu_device_get_id(self->pci_device));
+	}
+	for (guint i = 1; i < G_N_ELEMENTS(self->hfsts_buf); i++) {
+		g_autofree gchar *title = g_strdup_printf("Hfsts%u", i);
+		fwupd_codec_string_append_hex(
+		    str,
+		    idt,
+		    title,
+		    fu_memread_uint32(self->hfsts_buf[i], G_LITTLE_ENDIAN));
+	}
+	fwupd_codec_string_append(str, idt, "Family", fu_mei_family_to_string(self->family));
+	fwupd_codec_string_append_int(str, idt, "VersionPlatform", self->vers.platform);
+	fwupd_codec_string_append_int(str, idt, "VersionMajor", self->vers.major);
+	fwupd_codec_string_append_int(str, idt, "VersionMinor", self->vers.minor);
+	fwupd_codec_string_append_int(str, idt, "VersionHotfix", self->vers.hotfix);
+	fwupd_codec_string_append_int(str, idt, "VersionBuildno", self->vers.buildno);
+	fwupd_codec_string_append(str, idt, "Issue", fu_mei_issue_to_string(self->issue));
+}
+
 static FuMeiFamily
 fu_pci_mei_plugin_detect_family(FuPlugin *plugin)
 {
@@ -586,11 +613,6 @@ fu_pci_mei_plugin_add_attrs_csme18_bootguard_otp(FuPlugin *plugin,
 		fwupd_security_attr_add_flag(attr, FWUPD_SECURITY_ATTR_FLAG_ACTION_CONTACT_OEM);
 		return;
 	}
-	if (!fu_mei_csme18_hfsts6_get_manufacturing_lock(hfsts6)) {
-		fwupd_security_attr_set_result(attr, FWUPD_SECURITY_ATTR_RESULT_NOT_LOCKED);
-		fwupd_security_attr_add_flag(attr, FWUPD_SECURITY_ATTR_FLAG_ACTION_CONTACT_OEM);
-		return;
-	}
 
 	/* success */
 	fwupd_security_attr_add_flag(attr, FWUPD_SECURITY_ATTR_FLAG_SUCCESS);
@@ -757,4 +779,5 @@ fu_pci_mei_plugin_class_init(FuPciMeiPluginClass *klass)
 	plugin_class->constructed = fu_pci_mei_plugin_constructed;
 	plugin_class->add_security_attrs = fu_pci_mei_plugin_add_security_attrs;
 	plugin_class->backend_device_added = fu_pci_mei_plugin_backend_device_added;
+	plugin_class->to_string = fu_pci_mei_plugin_to_string;
 }

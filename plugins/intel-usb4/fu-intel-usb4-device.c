@@ -437,7 +437,7 @@ static FuFirmware *
 fu_intel_usb4_device_prepare_firmware(FuDevice *device,
 				      GInputStream *stream,
 				      FuProgress *progress,
-				      FwupdInstallFlags flags,
+				      FuFirmwareParseFlags flags,
 				      GError **error)
 {
 	FuIntelUsb4Device *self = FU_INTEL_USB4_DEVICE(device);
@@ -453,7 +453,7 @@ fu_intel_usb4_device_prepare_firmware(FuDevice *device,
 	fw_vendor_id = fu_intel_thunderbolt_nvm_get_vendor_id(FU_INTEL_THUNDERBOLT_NVM(firmware));
 	fw_model_id = fu_intel_thunderbolt_nvm_get_model_id(FU_INTEL_THUNDERBOLT_NVM(firmware));
 	if (self->nvm_vendor_id != fw_vendor_id || self->nvm_model_id != fw_model_id) {
-		if ((flags & FWUPD_INSTALL_FLAG_IGNORE_VID_PID) == 0) {
+		if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_VID_PID) == 0) {
 			g_set_error(error,
 				    FWUPD_ERROR,
 				    FWUPD_ERROR_NOT_SUPPORTED,
@@ -538,7 +538,7 @@ fu_intel_usb4_device_setup(FuDevice *device, GError **error)
 		return FALSE;
 	}
 	blob = g_bytes_new(buf, sizeof(buf));
-	if (!fu_firmware_parse_bytes(fw, blob, 0x0, FWUPD_INSTALL_FLAG_NONE, error)) {
+	if (!fu_firmware_parse_bytes(fw, blob, 0x0, FU_FIRMWARE_PARSE_FLAG_NONE, error)) {
 		g_prefix_error(error, "NVM parse error: ");
 		return FALSE;
 	}
@@ -565,6 +565,7 @@ static void
 fu_intel_usb4_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 78, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 22, "attach");
@@ -582,7 +583,6 @@ fu_intel_usb4_device_init(FuIntelUsb4Device *self)
 	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_PAIR);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_INHERIT_ACTIVATION);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_MD_SET_NAME_CATEGORY);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_NO_GENERIC_GUIDS);
 	fu_device_set_remove_delay(FU_DEVICE(self), FU_INTEL_USB4_DEVICE_REMOVE_DELAY);
 }

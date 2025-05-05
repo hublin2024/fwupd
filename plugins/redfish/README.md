@@ -21,11 +21,18 @@ This plugin supports the following protocol ID:
 
 ## GUID Generation
 
-These devices use the provided GUID provided in the `SoftwareId` property
-without modification if it is a valid GUID. If the property is not a GUID then
-the vendor instance ID is used instead:
+These devices use the provided GUID provided in the `SoftwareId` property without modification if
+it is a valid GUID. On HPE machines the `Hpe/DeviceClass` and `Hpe/Targets[]` GUIDs are also added
+if provided.
+
+If the `SoftwareId` property is not a GUID then the vendor instance ID is used instead:
 
 * `REDFISH\VENDOR_${RedfishManufacturer}&SOFTWAREID_${RedfishSoftwareId}`
+
+Additionally, on Dell hardware the SystemID is also used:
+
+* `REDFISH\VENDOR_${RedfishManufacturer}&SYSTEMID_${RedfishSystemID}&SOFTWAREID_${RedfishSoftwareId}`
+* `REDFISH\VENDOR_${RedfishManufacturer}&SYSTEMID_${RedfishSystemID}&SOFTWAREID` (only-quirks)
 
 Additionally, this Instance ID is added for quirk and parent matching:
 

@@ -9,11 +9,7 @@
 #include <fwupd.h>
 
 #define FU_TYPE_DEVICE_EVENT (fu_device_event_get_type())
-G_DECLARE_DERIVABLE_TYPE(FuDeviceEvent, fu_device_event, FU, DEVICE_EVENT, GObject)
-
-struct _FuDeviceEventClass {
-	GObjectClass parent_class;
-};
+G_DECLARE_FINAL_TYPE(FuDeviceEvent, fu_device_event, FU, DEVICE_EVENT, GObject)
 
 void
 fu_device_event_set_str(FuDeviceEvent *self, const gchar *key, const gchar *value)
@@ -42,3 +38,7 @@ fu_device_event_copy_data(FuDeviceEvent *self,
 			  gsize bufsz,
 			  gsize *actual_length,
 			  GError **error) G_GNUC_NON_NULL(1, 2);
+void
+fu_device_event_set_error(FuDeviceEvent *self, const GError *error) G_GNUC_NON_NULL(1, 2);
+gboolean
+fu_device_event_check_error(FuDeviceEvent *self, GError **error) G_GNUC_NON_NULL(1, 2);

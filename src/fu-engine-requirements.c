@@ -297,7 +297,7 @@ fu_engine_requirements_check_firmware(FuEngine *self,
 
 	/* vendor ID */
 	if (g_strcmp0(xb_node_get_text(req), "vendor-id") == 0) {
-		if (flags & FWUPD_INSTALL_FLAG_IGNORE_VID_PID)
+		if (flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_VID_PID)
 			return TRUE;
 		return fu_engine_requirements_check_vendor_id(self, req, device_actual, error);
 	}
@@ -703,6 +703,8 @@ fu_engine_requirements_check_hard(FuEngine *self,
 
 	/* ensure hardware requirement */
 	if (g_strcmp0(xb_node_get_element(req), "hardware") == 0) {
+		if (device == NULL || fu_device_has_flag(device, FWUPD_DEVICE_FLAG_EMULATED))
+			return TRUE;
 		if (!fu_context_has_flag(ctx, FU_CONTEXT_FLAG_LOADED_HWINFO))
 			return TRUE;
 		return fu_engine_requirements_check_hardware(self, req, fwupd_version, error);
@@ -822,7 +824,8 @@ fu_engine_requirements_check(FuEngine *self,
 		return FALSE;
 
 	/* sanity check */
-	if (device != NULL && !fu_device_has_flag(device, FWUPD_DEVICE_FLAG_UPDATABLE)) {
+	if (device != NULL && !fu_device_has_flag(device, FWUPD_DEVICE_FLAG_UPDATABLE) &&
+	    !fu_device_has_flag(device, FWUPD_DEVICE_FLAG_UPDATABLE_HIDDEN)) {
 		g_set_error(error,
 			    FWUPD_ERROR,
 			    FWUPD_ERROR_NOT_SUPPORTED,

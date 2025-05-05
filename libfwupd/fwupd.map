@@ -993,3 +993,25 @@ LIBFWUPD_2.0.1 {
     fwupd_client_get_details_finish;
   local: *;
 } LIBFWUPD_2.0.0;
+
+LIBFWUPD_2.0.2 {
+  global:
+    fwupd_remote_get_firmware_base_uri;
+    fwupd_remote_set_firmware_base_uri;
+  local: *;
+} LIBFWUPD_2.0.1;
+
+LIBFWUPD_2.0.4 {
+  global:
+    fwupd_install_flags_from_string;
+  local: *;
+} LIBFWUPD_2.0.2;
+
+LIBFWUPD_2.0.7 {
+  global:
+    fwupd_release_get_sbom_url;
+    fwupd_release_set_sbom_url;
+    fwupd_security_attr_get_fwupd_version;
+    fwupd_security_attr_set_fwupd_version;
+  local: *;
+} LIBFWUPD_2.0.4;

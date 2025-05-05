@@ -50,16 +50,7 @@ typedef struct {
 	gboolean properties_valid;
 } FuUdevDevicePrivate;
 
-static void
-fu_udev_device_codec_iface_init(FwupdCodecInterface *iface);
-
-G_DEFINE_TYPE_EXTENDED(FuUdevDevice,
-		       fu_udev_device,
-		       FU_TYPE_DEVICE,
-		       0,
-		       G_ADD_PRIVATE(FuUdevDevice)
-			   G_IMPLEMENT_INTERFACE(FWUPD_TYPE_CODEC,
-						 fu_udev_device_codec_iface_init));
+G_DEFINE_TYPE_WITH_PRIVATE(FuUdevDevice, fu_udev_device, FU_TYPE_DEVICE);
 
 enum {
 	PROP_0,
@@ -963,6 +954,11 @@ fu_udev_device_set_physical_id(FuUdevDevice *self, const gchar *subsystems, GErr
 	}
 
 	subsystem = fu_udev_device_get_subsystem(udev_device);
+	if (subsystem == NULL && fu_device_get_physical_id(FU_DEVICE(udev_device)) != NULL) {
+		fu_device_set_physical_id(FU_DEVICE(self),
+					  fu_device_get_physical_id(FU_DEVICE(udev_device)));
+		return TRUE;
+	}
 	if (g_strcmp0(subsystem, "pci") == 0) {
 		g_autofree gchar *prop_id =
 		    fu_udev_device_read_property(udev_device, "PCI_SLOT_NAME", error);
@@ -1095,11 +1091,10 @@ fu_udev_device_open(FuDevice *device, GError **error)
 	 * could add more flags, or set the flags back to NONE -- detect and fixup */
 	if (priv->device_file != NULL && priv->open_flags == FU_IO_CHANNEL_OPEN_FLAG_NONE) {
 #ifndef SUPPORTED_BUILD
-		g_critical(
-		    "%s [%s] forgot to call fu_udev_device_add_open_flag() with OPEN_READ and/or "
-		    "OPEN_WRITE",
-		    fu_device_get_name(device),
-		    fu_device_get_id(device));
+		g_critical("%s [%s] forgot to call fu_udev_device_add_open_flag() with "
+			   "FU_IO_CHANNEL_OPEN_FLAG_READ and/or FU_IO_CHANNEL_OPEN_FLAG_WRITE",
+			   fu_device_get_name(device),
+			   fu_device_get_id(device));
 #endif
 		fu_udev_device_add_open_flag(FU_UDEV_DEVICE(self), FU_IO_CHANNEL_OPEN_FLAG_READ);
 		fu_udev_device_add_open_flag(FU_UDEV_DEVICE(self), FU_IO_CHANNEL_OPEN_FLAG_WRITE);
@@ -1145,6 +1140,29 @@ fu_udev_device_close(FuDevice *device, GError **error)
 
 	/* success */
 	return TRUE;
+}
+
+/**
+ * fu_udev_device_reopen:
+ * @self: a #FuDevice
+ * @error: (nullable): optional return location for an error
+ *
+ * Closes and opens the device, typically used to close() and open() the device-file which is
+ * required by some ioctls.
+ *
+ * Returns: %TRUE for success
+ *
+ * Since: 2.0.9
+ **/
+gboolean
+fu_udev_device_reopen(FuUdevDevice *self, GError **error)
+{
+	g_return_val_if_fail(FU_IS_UDEV_DEVICE(self), FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+	if (!fu_udev_device_close(FU_DEVICE(self), error))
+		return FALSE;
+	return fu_udev_device_open(FU_DEVICE(self), error);
 }
 
 /**
@@ -1439,6 +1457,304 @@ fu_udev_device_pwrite(FuUdevDevice *self,
 }
 
 /**
+ * fu_udev_device_read:
+ * @self: a #FuUdevDevice
+ * @buf: (in): data
+ * @bufsz: size of @buf
+ * @bytes_read: (out) (nullable): data written to @buf
+ * @timeout_ms: timeout in ms
+ * @flags: channel flags, e.g. %FU_IO_CHANNEL_FLAG_SINGLE_SHOT
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a buffer from a file descriptor.
+ *
+ * Returns: %TRUE for success
+ *
+ * Since: 2.0.4
+ **/
+gboolean
+fu_udev_device_read(FuUdevDevice *self,
+		    guint8 *buf,
+		    gsize bufsz,
+		    gsize *bytes_read,
+		    guint timeout_ms,
+		    FuIOChannelFlags flags,
+		    GError **error)
+{
+	FuUdevDevicePrivate *priv = GET_PRIVATE(self);
+	FuDeviceEvent *event = NULL;
+	gsize buflen_tmp = 0;
+	g_autofree gchar *event_id = NULL;
+	g_autoptr(GError) error_local = NULL;
+
+	g_return_val_if_fail(FU_IS_UDEV_DEVICE(self), FALSE);
+	g_return_val_if_fail(buf != NULL, FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+	/* emulated */
+	if (fu_device_has_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_EMULATED) ||
+	    fu_context_has_flag(fu_device_get_context(FU_DEVICE(self)),
+				FU_CONTEXT_FLAG_SAVE_EVENTS)) {
+		event_id = g_strdup_printf("Read:Length=0x%x", (guint)bufsz);
+	}
+
+	/* emulated */
+	if (fu_device_has_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_EMULATED)) {
+		event = fu_device_load_event(FU_DEVICE(self), event_id, error);
+		if (event == NULL)
+			return FALSE;
+		if (!fu_device_event_check_error(event, error))
+			return FALSE;
+		return fu_device_event_copy_data(event, "Data", buf, bufsz, bytes_read, error);
+	}
+
+	/* save */
+	if (event_id != NULL)
+		event = fu_device_save_event(FU_DEVICE(self), event_id);
+
+	/* not open! */
+	if (priv->io_channel == NULL) {
+		g_set_error(error,
+			    FWUPD_ERROR,
+			    FWUPD_ERROR_INTERNAL,
+			    "%s [%s] has not been opened",
+			    fu_device_get_id(FU_DEVICE(self)),
+			    fu_device_get_name(FU_DEVICE(self)));
+		return FALSE;
+	}
+	if (!fu_io_channel_read_raw(priv->io_channel,
+				    buf,
+				    bufsz,
+				    &buflen_tmp,
+				    timeout_ms,
+				    flags,
+				    &error_local)) {
+		if (event != NULL)
+			fu_device_event_set_error(event, error_local);
+		g_propagate_error(error, g_steal_pointer(&error_local));
+		return FALSE;
+	}
+	if (bytes_read != NULL)
+		*bytes_read = buflen_tmp;
+
+	/* save response */
+	if (event != NULL)
+		fu_device_event_set_data(event, "Data", buf, buflen_tmp);
+	return TRUE;
+}
+
+/**
+ * fu_udev_device_read_bytes:
+ * @self: a #FuUdevDevice
+ * @count: bytes to read
+ * @timeout_ms: timeout in ms
+ * @flags: channel flags, e.g. %FU_IO_CHANNEL_FLAG_SINGLE_SHOT
+ * @error: (nullable): optional return location for an error
+ *
+ * Read a buffer from a file descriptor.
+ *
+ * Returns: (transfer full): A #GBytes, or %NULL
+ *
+ * Since: 2.0.7
+ **/
+GBytes *
+fu_udev_device_read_bytes(FuUdevDevice *self,
+			  gsize count,
+			  guint timeout_ms,
+			  FuIOChannelFlags flags,
+			  GError **error)
+{
+	gsize bytes_read = 0;
+	g_autofree guint8 *buf = NULL;
+
+	g_return_val_if_fail(FU_IS_UDEV_DEVICE(self), NULL);
+	g_return_val_if_fail(count > 0, NULL);
+	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+	buf = g_malloc0(count);
+	if (!fu_udev_device_read(self, buf, count, &bytes_read, timeout_ms, flags, error))
+		return NULL;
+	return g_bytes_new(buf, bytes_read);
+}
+
+/**
+ * fu_udev_device_write:
+ * @self: a #FuUdevDevice
+ * @buf: (out): data
+ * @bufsz: size of @data
+ * @timeout_ms: timeout in ms
+ * @flags: channel flags, e.g. %FU_IO_CHANNEL_FLAG_SINGLE_SHOT
+ * @error: (nullable): optional return location for an error
+ *
+ * Write a buffer to a file descriptor.
+ *
+ * Returns: %TRUE for success
+ *
+ * Since: 2.0.4
+ **/
+gboolean
+fu_udev_device_write(FuUdevDevice *self,
+		     const guint8 *buf,
+		     gsize bufsz,
+		     guint timeout_ms,
+		     FuIOChannelFlags flags,
+		     GError **error)
+{
+	FuUdevDevicePrivate *priv = GET_PRIVATE(self);
+	FuDeviceEvent *event = NULL;
+	g_autofree gchar *event_id = NULL;
+
+	g_return_val_if_fail(FU_IS_UDEV_DEVICE(self), FALSE);
+	g_return_val_if_fail(buf != NULL, FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+	/* emulated */
+	if (fu_device_has_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_EMULATED) ||
+	    fu_context_has_flag(fu_device_get_context(FU_DEVICE(self)),
+				FU_CONTEXT_FLAG_SAVE_EVENTS)) {
+		g_autofree gchar *data_base64 = g_base64_encode(buf, bufsz);
+		event_id = g_strdup_printf("Write:Data=%s,Length=0x%x", data_base64, (guint)bufsz);
+	}
+
+	/* emulated */
+	if (fu_device_has_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_EMULATED)) {
+		event = fu_device_load_event(FU_DEVICE(self), event_id, error);
+		if (event == NULL)
+			return FALSE;
+		return event != NULL;
+	}
+
+	/* save */
+	if (event_id != NULL)
+		event = fu_device_save_event(FU_DEVICE(self), event_id);
+
+	/* not open! */
+	if (priv->io_channel == NULL) {
+		g_set_error(error,
+			    FWUPD_ERROR,
+			    FWUPD_ERROR_INTERNAL,
+			    "%s [%s] has not been opened",
+			    fu_device_get_id(FU_DEVICE(self)),
+			    fu_device_get_name(FU_DEVICE(self)));
+		return FALSE;
+	}
+	if (!fu_io_channel_write_raw(priv->io_channel, buf, bufsz, timeout_ms, flags, error))
+		return FALSE;
+
+	/* success */
+	return TRUE;
+}
+
+/**
+ * fu_udev_device_write_bytes:
+ * @self: a #FuUdevDevice
+ * @blob: a #GBytes
+ * @timeout_ms: timeout in ms
+ * @flags: channel flags, e.g. %FU_IO_CHANNEL_FLAG_SINGLE_SHOT
+ * @error: (nullable): optional return location for an error
+ *
+ * Write a buffer to a file descriptor.
+ *
+ * Returns: %TRUE for success
+ *
+ * Since: 2.0.7
+ **/
+gboolean
+fu_udev_device_write_bytes(FuUdevDevice *self,
+			   GBytes *blob,
+			   guint timeout_ms,
+			   FuIOChannelFlags flags,
+			   GError **error)
+{
+	g_return_val_if_fail(FU_IS_UDEV_DEVICE(self), FALSE);
+	g_return_val_if_fail(blob != NULL, FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+	return fu_udev_device_write(self,
+				    g_bytes_get_data(blob, NULL),
+				    g_bytes_get_size(blob),
+				    timeout_ms,
+				    flags,
+				    error);
+}
+
+/**
+ * fu_udev_device_list_sysfs:
+ * @self: a #FuUdevDevice
+ * @error: (nullable): optional return location for an error
+ *
+ * Lists all the sysfs attributes.
+ *
+ * Returns: (transfer container) (element-type utf8): basenames, or %NULL
+ *
+ * Since: 2.0.9
+ **/
+GPtrArray *
+fu_udev_device_list_sysfs(FuUdevDevice *self, GError **error)
+{
+	FuDeviceEvent *event = NULL;
+	const gchar *basename;
+	g_autofree gchar *event_id = NULL;
+	g_autoptr(GDir) dir = NULL;
+	g_autoptr(GPtrArray) attrs = g_ptr_array_new_with_free_func(g_free);
+
+	g_return_val_if_fail(FU_IS_UDEV_DEVICE(self), NULL);
+	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+	/* need event ID */
+	if (fu_device_has_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_EMULATED) ||
+	    fu_context_has_flag(fu_device_get_context(FU_DEVICE(self)),
+				FU_CONTEXT_FLAG_SAVE_EVENTS)) {
+		event_id = g_strdup("ListAttr");
+	}
+
+	/* emulated */
+	if (fu_device_has_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_EMULATED)) {
+		const gchar *value;
+		g_auto(GStrv) attrs_strv = NULL;
+
+		event = fu_device_load_event(FU_DEVICE(self), event_id, error);
+		if (event == NULL)
+			return NULL;
+		value = fu_device_event_get_str(event, "Data", error);
+		if (value == NULL)
+			return NULL;
+		attrs_strv = g_strsplit(value, "\n", -1);
+		for (guint i = 0; attrs_strv[i] != NULL; i++)
+			g_ptr_array_add(attrs, g_strdup(attrs_strv[i]));
+		return g_steal_pointer(&attrs);
+	}
+
+	/* save */
+	if (event_id != NULL)
+		event = fu_device_save_event(FU_DEVICE(self), event_id);
+
+	/* list the files and directories */
+	if (fu_udev_device_get_sysfs_path(self) == NULL) {
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INTERNAL,
+				    "sysfs_path undefined");
+		return NULL;
+	}
+	dir = g_dir_open(fu_udev_device_get_sysfs_path(self), 0, error);
+	if (dir == NULL) {
+		fwupd_error_convert(error);
+		return NULL;
+	}
+	while ((basename = g_dir_read_name(dir)) != NULL)
+		g_ptr_array_add(attrs, g_strdup(basename));
+
+	/* save for emulation */
+	if (event != NULL) {
+		g_autofree gchar *value = fu_strjoin("\n", attrs);
+		fu_device_event_set_str(event, "Data", value);
+	}
+
+	/* success */
+	return g_steal_pointer(&attrs);
+}
+
+/**
  * fu_udev_device_read_sysfs:
  * @self: a #FuUdevDevice
  * @attr: sysfs attribute name
@@ -1549,7 +1865,6 @@ fu_udev_device_read_sysfs_bytes(FuUdevDevice *self,
 	FuDeviceEvent *event = NULL;
 	g_autofree gchar *event_id = NULL;
 	g_autofree gchar *path = NULL;
-	g_autofree gchar *value = NULL;
 	g_autoptr(FuIOChannel) io_channel = NULL;
 	g_autoptr(GBytes) blob = NULL;
 
@@ -1844,82 +2159,6 @@ fu_udev_device_get_subsystem_devtype(FuUdevDevice *self)
 	return g_strdup(priv->subsystem);
 }
 
-static GBytes *
-fu_udev_device_dump_firmware(FuDevice *device, FuProgress *progress, GError **error)
-{
-	FuUdevDevice *self = FU_UDEV_DEVICE(device);
-	FuUdevDevicePrivate *priv = GET_PRIVATE(self);
-	guint number_reads = 0;
-	g_autofree gchar *fn = NULL;
-	g_autoptr(GByteArray) buf = g_byte_array_new();
-	g_autoptr(GError) error_local = NULL;
-	g_autoptr(GFile) file = NULL;
-	g_autoptr(GInputStream) stream = NULL;
-
-	/* open the file */
-	if (priv->device_file == NULL) {
-		g_set_error_literal(error,
-				    FWUPD_ERROR,
-				    FWUPD_ERROR_INTERNAL,
-				    "Unable to read firmware from device");
-		return NULL;
-	}
-
-	/* open file */
-	file = g_file_new_for_path(priv->device_file);
-	stream = G_INPUT_STREAM(g_file_read(file, NULL, &error_local));
-	if (stream == NULL) {
-		g_set_error_literal(error,
-				    FWUPD_ERROR,
-				    FWUPD_ERROR_AUTH_FAILED,
-				    error_local->message);
-		return NULL;
-	}
-
-	/* we have to enable the read for devices */
-	fn = g_file_get_path(file);
-	if (g_str_has_prefix(fn, "/sys")) {
-		g_autoptr(GFileOutputStream) output_stream = NULL;
-		output_stream = g_file_replace(file, NULL, FALSE, G_FILE_CREATE_NONE, NULL, error);
-		if (output_stream == NULL) {
-			fu_error_convert(error);
-			return NULL;
-		}
-		if (!g_output_stream_write_all(G_OUTPUT_STREAM(output_stream),
-					       "1",
-					       1,
-					       NULL,
-					       NULL,
-					       error)) {
-			fu_error_convert(error);
-			return NULL;
-		}
-	}
-
-	/* ensure we got enough data to fill the buffer */
-	while (TRUE) {
-		gssize sz;
-		guint8 tmp[32 * 1024] = {0x0};
-		sz = g_input_stream_read(stream, tmp, sizeof(tmp), NULL, error);
-		if (sz == 0)
-			break;
-		g_debug("ROM returned 0x%04x bytes", (guint)sz);
-		if (sz < 0)
-			return NULL;
-		g_byte_array_append(buf, tmp, sz);
-
-		/* check the firmware isn't serving us small chunks */
-		if (number_reads++ > 1024) {
-			g_set_error_literal(error,
-					    FWUPD_ERROR,
-					    FWUPD_ERROR_INVALID_FILE,
-					    "firmware not fulfilling requests");
-			return NULL;
-		}
-	}
-	return g_bytes_new(buf->data, buf->len);
-}
-
 /* private */
 void
 fu_udev_device_add_property(FuUdevDevice *self, const gchar *key, const gchar *value)
@@ -1992,10 +2231,13 @@ fu_udev_device_read_property(FuUdevDevice *self, const gchar *key, GError **erro
 			return NULL;
 		uevent_lines = g_strsplit(str, "\n", -1);
 		for (guint i = 0; uevent_lines[i] != NULL; i++) {
-			g_autofree gchar **kvs = g_strsplit(uevent_lines[i], "=", 2);
-			g_hash_table_insert(priv->properties,
-					    g_steal_pointer(&kvs[0]),
-					    g_steal_pointer(&kvs[1]));
+			/* only split KEY=VALUE */
+			if (g_strstr_len(uevent_lines[i], -1, "=") != NULL) {
+				g_autofree gchar **kvs = g_strsplit(uevent_lines[i], "=", 2);
+				g_hash_table_insert(priv->properties,
+						    g_steal_pointer(&kvs[0]),
+						    g_steal_pointer(&kvs[1]));
+			}
 		}
 		priv->properties_valid = TRUE;
 	}
@@ -2018,10 +2260,9 @@ fu_udev_device_read_property(FuUdevDevice *self, const gchar *key, GError **erro
 }
 
 static void
-fu_udev_device_add_json(FwupdCodec *codec, JsonBuilder *builder, FwupdCodecFlags flags)
+fu_udev_device_add_json(FuDevice *device, JsonBuilder *builder, FwupdCodecFlags flags)
 {
-	FuDevice *device = FU_DEVICE(codec);
-	FuUdevDevice *self = FU_UDEV_DEVICE(codec);
+	FuUdevDevice *self = FU_UDEV_DEVICE(device);
 	FuUdevDevicePrivate *priv = GET_PRIVATE(self);
 	GPtrArray *events = fu_device_get_events(device);
 
@@ -2044,16 +2285,6 @@ fu_udev_device_add_json(FwupdCodec *codec, JsonBuilder *builder, FwupdCodecFlags
 	if (fu_device_get_pid(device) != 0)
 		fwupd_codec_json_append_int(builder, "Model", fu_device_get_pid(device));
 
-#if GLIB_CHECK_VERSION(2, 80, 0)
-	if (fu_device_get_created_usec(device) != 0) {
-		g_autoptr(GDateTime) dt =
-		    g_date_time_new_from_unix_utc_usec(fu_device_get_created_usec(device));
-		g_autofree gchar *str = g_date_time_format_iso8601(dt);
-		json_builder_set_member_name(builder, "Created");
-		json_builder_add_string_value(builder, str);
-	}
-#endif
-
 	/* events */
 	if (events->len > 0) {
 		json_builder_set_member_name(builder, "Events");
@@ -2061,7 +2292,10 @@ fu_udev_device_add_json(FwupdCodec *codec, JsonBuilder *builder, FwupdCodecFlags
 		for (guint i = 0; i < events->len; i++) {
 			FuDeviceEvent *event = g_ptr_array_index(events, i);
 			json_builder_begin_object(builder);
-			fwupd_codec_to_json(FWUPD_CODEC(event), builder, flags);
+			fwupd_codec_to_json(FWUPD_CODEC(event),
+					    builder,
+					    events->len > 1000 ? flags | FWUPD_CODEC_FLAG_COMPRESSED
+							       : flags);
 			json_builder_end_object(builder);
 		}
 		json_builder_end_array(builder);
@@ -2069,11 +2303,9 @@ fu_udev_device_add_json(FwupdCodec *codec, JsonBuilder *builder, FwupdCodecFlags
 }
 
 static gboolean
-fu_udev_device_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
+fu_udev_device_from_json(FuDevice *device, JsonObject *json_object, GError **error)
 {
-	FuDevice *device = FU_DEVICE(codec);
-	FuUdevDevice *self = FU_UDEV_DEVICE(codec);
-	JsonObject *json_object = json_node_get_object(json_node);
+	FuUdevDevice *self = FU_UDEV_DEVICE(device);
 	const gchar *tmp;
 	gint64 tmp64;
 
@@ -2101,15 +2333,6 @@ fu_udev_device_from_json(FwupdCodec *codec, JsonNode *json_node, GError **error)
 	tmp64 = json_object_get_int_member_with_default(json_object, "Model", 0);
 	if (tmp64 != 0)
 		fu_device_set_pid(device, tmp64);
-
-#if GLIB_CHECK_VERSION(2, 80, 0)
-	tmp = json_object_get_string_member_with_default(json_object, "Created", NULL);
-	if (tmp != NULL) {
-		g_autoptr(GDateTime) dt = g_date_time_new_from_iso8601(tmp, NULL);
-		if (dt != NULL)
-			fu_device_set_created_usec(device, g_date_time_to_unix_usec(dt));
-	}
-#endif
 
 	/* array of events */
 	if (json_object_has_member(json_object, "Events")) {
@@ -2247,7 +2470,8 @@ fu_udev_device_class_init(FuUdevDeviceClass *klass)
 	device_class->bind_driver = fu_udev_device_bind_driver;
 	device_class->unbind_driver = fu_udev_device_unbind_driver;
 	device_class->probe_complete = fu_udev_device_probe_complete;
-	device_class->dump_firmware = fu_udev_device_dump_firmware;
+	device_class->from_json = fu_udev_device_from_json;
+	device_class->add_json = fu_udev_device_add_json;
 
 	/**
 	 * FuUdevDevice::changed:
@@ -2336,13 +2560,6 @@ fu_udev_device_class_init(FuUdevDeviceClass *klass)
 				    NULL,
 				    G_PARAM_READWRITE | G_PARAM_STATIC_NAME);
 	g_object_class_install_property(object_class, PROP_DEVTYPE, pspec);
-}
-
-static void
-fu_udev_device_codec_iface_init(FwupdCodecInterface *iface)
-{
-	iface->add_json = fu_udev_device_add_json;
-	iface->from_json = fu_udev_device_from_json;
 }
 
 /**

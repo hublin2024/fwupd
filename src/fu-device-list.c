@@ -329,8 +329,10 @@ fu_device_list_filter_by_id(FuDeviceList *self, const gchar *device_id, GError *
 				      fu_device_get_equivalent_id(item_tmp->device),
 				      NULL};
 		for (guint j = 0; ids[j] != NULL; j++) {
-			if (strncmp(ids[j], device_id, device_id_len) == 0)
+			if (strncmp(ids[j], device_id, device_id_len) == 0) {
 				g_ptr_array_add(items, item_tmp);
+				break;
+			}
 		}
 	}
 	g_rw_lock_reader_unlock(&self->devices_mutex);
@@ -349,8 +351,10 @@ fu_device_list_filter_by_id(FuDeviceList *self, const gchar *device_id, GError *
 		ids[0] = fu_device_get_id(item_tmp->device_old);
 		ids[1] = fu_device_get_equivalent_id(item_tmp->device_old);
 		for (guint j = 0; ids[j] != NULL; j++) {
-			if (strncmp(ids[j], device_id, device_id_len) == 0)
+			if (strncmp(ids[j], device_id, device_id_len) == 0) {
 				g_ptr_array_add(items, item_tmp);
+				break;
+			}
 		}
 	}
 	g_rw_lock_reader_unlock(&self->devices_mutex);
@@ -429,7 +433,10 @@ fu_device_list_get_by_guids_removed(FuDeviceList *self, GPtrArray *guids)
 		for (guint j = 0; j < guids->len; j++) {
 			const gchar *guid = g_ptr_array_index(guids, j);
 			if (fu_device_has_guid(item->device, guid) ||
-			    fu_device_has_counterpart_guid(item->device, guid))
+			    fu_device_has_instance_id(item->device,
+						      guid,
+						      FU_DEVICE_INSTANCE_FLAG_COUNTERPART |
+							  FU_DEVICE_INSTANCE_FLAG_VISIBLE))
 				return item;
 		}
 	}
@@ -442,7 +449,10 @@ fu_device_list_get_by_guids_removed(FuDeviceList *self, GPtrArray *guids)
 		for (guint j = 0; j < guids->len; j++) {
 			const gchar *guid = g_ptr_array_index(guids, j);
 			if (fu_device_has_guid(item->device_old, guid) ||
-			    fu_device_has_counterpart_guid(item->device_old, guid))
+			    fu_device_has_instance_id(item->device_old,
+						      guid,
+						      FU_DEVICE_INSTANCE_FLAG_COUNTERPART |
+							  FU_DEVICE_INSTANCE_FLAG_VISIBLE))
 				return item;
 		}
 	}
@@ -504,7 +514,7 @@ fu_device_list_should_remove_with_delay(FuDevice *device)
 {
 	if (fu_device_get_remove_delay(device) == 0)
 		return FALSE;
-	if (fu_device_has_private_flag(device, FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG) &&
+	if (!fu_device_has_private_flag(device, FU_DEVICE_PRIVATE_FLAG_DELAYED_REMOVAL) &&
 	    !fu_device_has_flag(device, FWUPD_DEVICE_FLAG_WAIT_FOR_REPLUG))
 		return FALSE;
 	return TRUE;
@@ -607,12 +617,16 @@ fu_device_list_add_missing_guids(FuDevice *device_new, FuDevice *device_old)
 	for (guint i = 0; i < guids_old->len; i++) {
 		const gchar *guid_tmp = g_ptr_array_index(guids_old, i);
 		if (!fu_device_has_guid(device_new, guid_tmp) &&
-		    !fu_device_has_counterpart_guid(device_new, guid_tmp)) {
+		    !fu_device_has_instance_id(device_new,
+					       guid_tmp,
+					       FU_DEVICE_INSTANCE_FLAG_COUNTERPART)) {
 			if (fu_device_has_private_flag(
 				device_new,
 				FU_DEVICE_PRIVATE_FLAG_ADD_COUNTERPART_GUIDS)) {
 				g_info("adding GUID %s to device", guid_tmp);
-				fu_device_add_counterpart_guid(device_new, guid_tmp);
+				fu_device_add_instance_id_full(device_new,
+							       guid_tmp,
+							       FU_DEVICE_INSTANCE_FLAG_COUNTERPART);
 			} else {
 				g_info("not adding GUID %s to device, use "
 				       "FU_DEVICE_PRIVATE_FLAG_ADD_COUNTERPART_GUIDS if required",
@@ -740,9 +754,6 @@ fu_device_list_replace(FuDeviceList *self, FuDeviceItem *item, FuDevice *device)
 		fu_device_set_version_raw(device, raw);
 	}
 
-	/* allow another plugin to handle the write too */
-	fu_device_incorporate_flag(device, item->device, FWUPD_DEVICE_FLAG_ANOTHER_WRITE_REQUIRED);
-
 	/* seems like a sane assumption if we've tagged the runtime mode as signed */
 	fu_device_incorporate_flag(device, item->device, FWUPD_DEVICE_FLAG_SIGNED_PAYLOAD);
 	fu_device_incorporate_flag(device, item->device, FWUPD_DEVICE_FLAG_UNSIGNED_PAYLOAD);
@@ -813,6 +824,9 @@ fu_device_list_add(FuDeviceList *self, FuDevice *device)
 	g_return_if_fail(FU_IS_DEVICE_LIST(self));
 	g_return_if_fail(FU_IS_DEVICE(device));
 
+	/* make tests easier */
+	fu_device_convert_instance_ids(device);
+
 	/* is the device waiting to be replugged? */
 	item = fu_device_list_find_by_id(self, fu_device_get_id(device), NULL);
 	if (item != NULL) {
@@ -879,8 +893,8 @@ fu_device_list_add(FuDeviceList *self, FuDevice *device)
 	/* verify a compatible device does not already exist */
 	item = fu_device_list_get_by_guids_removed(self, fu_device_get_guids(device));
 	if (item == NULL) {
-		item = fu_device_list_get_by_guids_removed(self,
-							   fu_device_get_counterpart_guids(device));
+		g_autoptr(GPtrArray) guids = fu_device_get_counterpart_guids(device);
+		item = fu_device_list_get_by_guids_removed(self, guids);
 	}
 	if (item != NULL) {
 		if (fu_device_has_private_flag(device, FU_DEVICE_PRIVATE_FLAG_REPLUG_MATCH_GUID)) {

@@ -90,7 +90,6 @@ parts:
                        -Dman=false,
                        -Dpython=/usr/bin/python3,
                        -Dplugin_flashrom=disabled,
-                       -Dplugin_powerd=disabled,
                        -Defi_os_dir=fwupd,
                        "-Dlibxmlb:gtkdoc=false",
                        "-Dlibxmlb:introspection=false",
@@ -160,6 +159,7 @@ parts:
       - libmm-glib-dev
       - libqmi-glib-dev
       - libmbim-glib-dev
+      - libreadline-dev
       - locales
       - meson
       - modemmanager
@@ -189,6 +189,7 @@ parts:
       - libgpgme11
       - libprotobuf-c1
       - libpolkit-gobject-1-0
+      - libreadline8t64
       - libtss2-esys-3.0.2-0
       - libtss2-fapi1
       - libtss2-mu-4.0.1-0t64

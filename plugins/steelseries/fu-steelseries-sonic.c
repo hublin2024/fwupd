@@ -802,7 +802,9 @@ fu_steelseries_sonic_write_firmware(FuDevice *device,
 }
 
 static gboolean
-fu_steelseries_sonic_parse_firmware(FuFirmware *firmware, FwupdInstallFlags flags, GError **error)
+fu_steelseries_sonic_parse_firmware(FuFirmware *firmware,
+				    FuFirmwareParseFlags flags,
+				    GError **error)
 {
 	guint32 checksum_tmp;
 	guint32 checksum;
@@ -824,7 +826,7 @@ fu_steelseries_sonic_parse_firmware(FuFirmware *firmware, FwupdInstallFlags flag
 				g_bytes_get_size(blob) - sizeof(checksum_tmp));
 	checksum_tmp = ~checksum_tmp;
 	if (checksum_tmp != checksum) {
-		if ((flags & FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM) == 0) {
+		if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_CHECKSUM) == 0) {
 			g_set_error(error,
 				    FWUPD_ERROR,
 				    FWUPD_ERROR_INTERNAL,
@@ -849,7 +851,7 @@ static FuFirmware *
 fu_steelseries_sonic_prepare_firmware(FuDevice *device,
 				      GInputStream *stream,
 				      FuProgress *progress,
-				      FwupdInstallFlags flags,
+				      FuFirmwareParseFlags flags,
 				      GError **error)
 {
 	g_autoptr(FuFirmware) firmware_nordic = NULL;
@@ -899,6 +901,7 @@ static void
 fu_steelseries_sonic_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 92, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 5, "attach");

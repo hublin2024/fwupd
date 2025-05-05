@@ -8,8 +8,10 @@
 
 #include <fwupdplugin.h>
 
+const gchar *
+fu_uefi_dbx_get_efi_arch(void);
 gboolean
 fu_uefi_dbx_signature_list_validate(FuContext *ctx,
 				    FuEfiSignatureList *siglist,
-				    FwupdInstallFlags flags,
+				    FuFirmwareParseFlags flags,
 				    GError **error);

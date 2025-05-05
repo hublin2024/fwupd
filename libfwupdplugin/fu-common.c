@@ -14,6 +14,7 @@
 
 #include "fu-common-private.h"
 #include "fu-firmware.h"
+#include "fu-path.h"
 #include "fu-string.h"
 
 /**
@@ -60,6 +61,48 @@ fu_cpuid(guint32 leaf, guint32 *eax, guint32 *ebx, guint32 *ecx, guint32 *edx, G
 }
 
 /**
+ * fu_cpu_get_attrs:
+ * @error: (nullable): optional return location for an error
+ *
+ * Gets attributes for the first CPU listed in `/proc/cpuinfo`.
+ *
+ * Returns: (element-type utf8 utf8) (transfer full): CPU attributes
+ *
+ * Since: 2.0.7
+ **/
+GHashTable *
+fu_cpu_get_attrs(GError **error)
+{
+	gsize bufsz = 0;
+	g_autofree gchar *buf = NULL;
+	g_autofree gchar *procpath = fu_path_from_kind(FU_PATH_KIND_PROCFS);
+	g_autofree gchar *fn = g_build_filename(procpath, "cpuinfo", NULL);
+	g_autoptr(GHashTable) hash = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+
+	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
+
+	if (!g_file_get_contents(fn, &buf, &bufsz, error))
+		return NULL;
+	if (bufsz > 0) {
+		g_auto(GStrv) lines = fu_strsplit(buf, bufsz, "\n", -1);
+		for (guint i = 0; lines[i] != NULL; i++) {
+			g_auto(GStrv) tokens = NULL;
+			if (lines[i][0] == '\0')
+				break;
+			tokens = g_strsplit(lines[i], ": ", 2);
+			for (guint j = 0; tokens[j] != NULL; j++) {
+				g_hash_table_insert(hash,
+						    fu_strstrip(tokens[0]),
+						    g_strdup(tokens[1]));
+			}
+		}
+	}
+
+	/* success */
+	return g_steal_pointer(&hash);
+}
+
+/**
  * fu_cpu_get_vendor:
  *
  * Uses CPUID to discover the CPU vendor.
@@ -93,40 +136,6 @@ fu_cpu_get_vendor(void)
 }
 
 /**
- * fu_common_is_live_media:
- *
- * Checks if the user is running from a live media using various heuristics.
- *
- * Returns: %TRUE if live
- *
- * Since: 1.4.6
- **/
-gboolean
-fu_common_is_live_media(void)
-{
-	gsize bufsz = 0;
-	g_autofree gchar *buf = NULL;
-	g_auto(GStrv) tokens = NULL;
-	const gchar *args[] = {
-	    "rd.live.image",
-	    "boot=live",
-	    NULL, /* last entry */
-	};
-	if (g_file_test("/cdrom/.disk/info", G_FILE_TEST_EXISTS))
-		return TRUE;
-	if (!g_file_get_contents("/proc/cmdline", &buf, &bufsz, NULL))
-		return FALSE;
-	if (bufsz <= 1)
-		return FALSE;
-	tokens = fu_strsplit(buf, bufsz - 1, " ", -1);
-	for (guint i = 0; args[i] != NULL; i++) {
-		if (g_strv_contains((const gchar *const *)tokens, args[i]))
-			return TRUE;
-	}
-	return FALSE;
-}
-
-/**
  * fu_common_get_memory_size:
  *
  * Returns the size of physical memory.
@@ -155,46 +164,6 @@ gchar *
 fu_common_get_kernel_cmdline(GError **error)
 {
 	return fu_common_get_kernel_cmdline_impl(error);
-}
-
-/**
- * fu_common_check_full_disk_encryption:
- * @error: (nullable): optional return location for an error
- *
- * Checks that all FDE volumes are not going to be affected by a firmware update. If unsure,
- * return with failure and let the user decide.
- *
- * Returns: %TRUE for success
- *
- * Since: 1.7.1
- **/
-gboolean
-fu_common_check_full_disk_encryption(GError **error)
-{
-	g_autoptr(GPtrArray) devices = NULL;
-
-	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-
-	devices = fu_common_get_block_devices(error);
-	if (devices == NULL)
-		return FALSE;
-	for (guint i = 0; i < devices->len; i++) {
-		GDBusProxy *proxy = g_ptr_array_index(devices, i);
-		g_autoptr(GVariant) id_type = g_dbus_proxy_get_cached_property(proxy, "IdType");
-		g_autoptr(GVariant) device = g_dbus_proxy_get_cached_property(proxy, "Device");
-		if (id_type == NULL || device == NULL)
-			continue;
-		if (g_strcmp0(g_variant_get_string(id_type, NULL), "BitLocker") == 0) {
-			g_set_error(error,
-				    FWUPD_ERROR,
-				    FWUPD_ERROR_AUTH_EXPIRED,
-				    "%s device %s is encrypted",
-				    g_variant_get_string(id_type, NULL),
-				    g_variant_get_bytestring(device));
-			return FALSE;
-		}
-	}
-	return TRUE;
 }
 
 /**
@@ -356,4 +325,19 @@ void
 fu_xmlb_builder_insert_kb(XbBuilderNode *bn, const gchar *key, gboolean value)
 {
 	xb_builder_node_insert_text(bn, key, value ? "true" : "false", NULL);
+}
+
+/**
+ * fu_snap_is_in_snap:
+ *
+ * Check whether the current process is running inside a snap.
+ *
+ * Returns: TRUE if current process is running inside a snap.
+ *
+ * Since: 2.0.4
+ **/
+gboolean
+fu_snap_is_in_snap(void)
+{
+	return getenv("SNAP") != NULL;
 }

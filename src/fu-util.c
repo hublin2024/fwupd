@@ -35,10 +35,6 @@
 #include "fu-systemd.h"
 #endif
 
-/* custom return codes */
-#define EXIT_NOTHING_TO_DO 2
-#define EXIT_NOT_FOUND	   3
-
 typedef enum {
 	FU_UTIL_OPERATION_UNKNOWN,
 	FU_UTIL_OPERATION_UPDATE,
@@ -243,7 +239,7 @@ fu_util_perhaps_show_unreported(FuUtilPrivate *priv, GError **error)
 	gboolean all_automatic = FALSE;
 
 	/* we don't want to ask anything */
-	if (priv->no_unreported_check) {
+	if (priv->no_unreported_check || priv->as_json) {
 		g_debug("skipping unreported check");
 		return TRUE;
 	}
@@ -614,10 +610,12 @@ fu_util_get_devices(FuUtilPrivate *priv, gchar **values, GError **error)
 	if (devs->len > 0)
 		fu_util_build_device_tree(priv, root, devs);
 	if (g_node_n_children(root) == 0) {
-		fu_console_print_literal(priv->console,
-					 /* TRANSLATORS: nothing attached that can be upgraded */
-					 _("No hardware detected with firmware update capability"));
-		return TRUE;
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_NOTHING_TO_DO,
+				    /* TRANSLATORS: nothing attached that can be upgraded */
+				    _("No hardware detected with firmware update capability"));
+		return FALSE;
 	}
 	fu_util_print_node(priv->console, priv->client, root);
 
@@ -705,10 +703,55 @@ fu_util_display_current_message(FuUtilPrivate *priv)
 typedef struct {
 	guint nr_success;
 	guint nr_missing;
+	guint nr_skipped;
 	JsonBuilder *builder;
 	const gchar *name;
 	gboolean use_emulation;
+	GHashTable *report_metadata;
 } FuUtilDeviceTestHelper;
+
+static void
+fu_util_device_test_helper_free(FuUtilDeviceTestHelper *helper)
+{
+	if (helper->report_metadata != NULL)
+		g_hash_table_unref(helper->report_metadata);
+	if (helper->builder != NULL)
+		g_object_unref(helper->builder);
+	g_free(helper);
+}
+
+static FuUtilDeviceTestHelper *
+fu_util_device_test_helper_new(void)
+{
+	FuUtilDeviceTestHelper *helper = g_new0(FuUtilDeviceTestHelper, 1);
+	helper->builder = json_builder_new();
+	return helper;
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(FuUtilDeviceTestHelper, fu_util_device_test_helper_free)
+
+static GPtrArray *
+fu_util_filter_devices(FuUtilPrivate *priv, GPtrArray *devices, GError **error)
+{
+	g_autoptr(GPtrArray) devices_filtered =
+	    g_ptr_array_new_with_free_func((GDestroyNotify)g_object_unref);
+	for (guint i = 0; i < devices->len; i++) {
+		FwupdDevice *dev = g_ptr_array_index(devices, i);
+		if (!fwupd_device_match_flags(dev,
+					      priv->filter_device_include,
+					      priv->filter_device_exclude))
+			continue;
+		g_ptr_array_add(devices_filtered, g_object_ref(dev));
+	}
+	if (devices_filtered->len == 0) {
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_NOT_FOUND,
+				    "failed to find any devices");
+		return NULL;
+	}
+	return g_steal_pointer(&devices_filtered);
+}
 
 static gboolean
 fu_util_device_test_component(FuUtilPrivate *priv,
@@ -749,13 +792,17 @@ fu_util_device_test_component(FuUtilPrivate *priv,
 		FwupdDevice *device_tmp;
 		const gchar *guid = json_node_get_string(json_node);
 		g_autoptr(GPtrArray) devices = NULL;
+		g_autoptr(GPtrArray) devices_filtered = NULL;
 
 		g_debug("looking for guid %s", guid);
 		devices =
 		    fwupd_client_get_devices_by_guid(priv->client, guid, priv->cancellable, NULL);
 		if (devices == NULL)
 			continue;
-		if (devices->len > 1) {
+		devices_filtered = fu_util_filter_devices(priv, devices, NULL);
+		if (devices_filtered == NULL)
+			continue;
+		if (devices_filtered->len > 1) {
 			g_set_error(error,
 				    FWUPD_ERROR,
 				    FWUPD_ERROR_NOT_SUPPORTED,
@@ -763,7 +810,7 @@ fu_util_device_test_component(FuUtilPrivate *priv,
 				    guid);
 			return FALSE;
 		}
-		device_tmp = g_ptr_array_index(devices, 0);
+		device_tmp = g_ptr_array_index(devices_filtered, 0);
 		if (protocol != NULL && !fwupd_device_has_protocol(device_tmp, protocol))
 			continue;
 		device = g_object_ref(device_tmp);
@@ -876,6 +923,27 @@ fu_util_device_test_remove_emulated_devices(FuUtilPrivate *priv, GError **error)
 	return TRUE;
 }
 
+static gchar *
+fu_util_maybe_expand_basename(FuUtilPrivate *priv, const gchar *maybe_basename, GError **error)
+{
+	g_autoptr(FwupdRemote) remote = NULL;
+
+	if (g_str_has_prefix(maybe_basename, "https://"))
+		return g_strdup(maybe_basename);
+	if (g_str_has_prefix(maybe_basename, "/"))
+		return g_strdup(maybe_basename);
+
+	/* find LVFS remote */
+	remote = fwupd_client_get_remote_by_id(priv->client, "lvfs", priv->cancellable, error);
+	if (remote == NULL)
+		return NULL;
+	if (fwupd_remote_get_firmware_base_uri(remote)) {
+		g_debug("no FirmwareBaseURI set in lvfs.conf, using default");
+		return g_strdup_printf("https://fwupd.org/downloads/%s", maybe_basename);
+	}
+	return g_strdup_printf("%s/%s", fwupd_remote_get_firmware_base_uri(remote), maybe_basename);
+}
+
 static gboolean
 fu_util_device_test_step(FuUtilPrivate *priv,
 			 FuUtilDeviceTestHelper *helper,
@@ -883,27 +951,40 @@ fu_util_device_test_step(FuUtilPrivate *priv,
 			 GError **error)
 {
 	JsonArray *json_array;
-	const gchar *emulation_url = NULL;
 
 	/* send this data to the daemon */
 	if (helper->use_emulation) {
 		g_autofree gchar *emulation_filename = NULL;
+		g_autofree gchar *emulation_url = NULL;
 
 		/* just ignore anything without emulation data */
 		if (json_object_has_member(json_obj, "emulation-url")) {
-			emulation_url = json_object_get_string_member(json_obj, "emulation-url");
+			const gchar *url_tmp =
+			    json_object_get_string_member(json_obj, "emulation-url");
+
+			emulation_url = fu_util_maybe_expand_basename(priv, url_tmp, error);
+			if (emulation_url == NULL)
+				return FALSE;
 			emulation_filename =
 			    fu_util_download_if_required(priv, emulation_url, error);
 			if (emulation_filename == NULL) {
 				g_prefix_error(error, "failed to download %s: ", emulation_url);
 				return FALSE;
 			}
-		} else if (json_object_has_member(json_obj, "emulation-file"))
+		} else if (json_object_has_member(json_obj, "emulation-file")) {
 			emulation_filename =
 			    g_strdup(json_object_get_string_member(json_obj, "emulation-file"));
-		else
+		} else {
 			return TRUE;
+		}
 
+		/* log */
+		if (emulation_url != NULL) {
+			json_builder_set_member_name(helper->builder, "emulation-url");
+			json_builder_add_string_value(helper->builder, emulation_url);
+		}
+		json_builder_set_member_name(helper->builder, "emulation-file");
+		json_builder_add_string_value(helper->builder, emulation_filename);
 		if (!fwupd_client_emulation_load(priv->client,
 						 emulation_filename,
 						 priv->cancellable,
@@ -915,10 +996,14 @@ fu_util_device_test_step(FuUtilPrivate *priv,
 
 	/* download file if required */
 	if (json_object_has_member(json_obj, "url")) {
-		const gchar *url = json_object_get_string_member(json_obj, "url");
+		const gchar *url_tmp = json_object_get_string_member(json_obj, "url");
 		g_autofree gchar *filename = NULL;
+		g_autofree gchar *url = NULL;
 		g_autoptr(GError) error_local = NULL;
 
+		url = fu_util_maybe_expand_basename(priv, url_tmp, error);
+		if (url == NULL)
+			return FALSE;
 		filename = fu_util_download_if_required(priv, url, error);
 		if (filename == NULL) {
 			g_prefix_error(error, "failed to download %s: ", url);
@@ -1047,6 +1132,22 @@ fu_util_device_test_filename(FuUtilPrivate *priv,
 		json_builder_set_member_name(helper->builder, "interactive");
 		json_builder_add_boolean_value(helper->builder, interactive);
 	}
+	if (json_object_has_member(json_obj, "cpu-architectures")) {
+		JsonArray *json_array = json_object_get_array_member(json_obj, "cpu-architectures");
+		gboolean matched = FALSE;
+		const gchar *arch = g_hash_table_lookup(helper->report_metadata, "CpuArchitecture");
+		for (guint i = 0; i < json_array_get_length(json_array); i++) {
+			const gchar *arch_tmp = json_array_get_string_element(json_array, i);
+			if (g_strcmp0(arch, arch_tmp) == 0) {
+				matched = TRUE;
+				break;
+			}
+		}
+		if (!matched) {
+			helper->nr_skipped++;
+			return TRUE;
+		}
+	}
 
 	/* process each step */
 	if (json_object_has_member(json_obj, "repeat")) {
@@ -1073,24 +1174,80 @@ fu_util_device_test_filename(FuUtilPrivate *priv,
 	return TRUE;
 }
 
+typedef struct {
+	FuUtilPrivate *priv;
+	gchar *inhibit_id;
+} FuUtilInhibitHelper;
+
+static void
+fu_util_inhibit_helper_free(FuUtilInhibitHelper *helper)
+{
+	g_free(helper->inhibit_id);
+	g_free(helper);
+}
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(FuUtilInhibitHelper, fu_util_inhibit_helper_free)
+
+static gboolean
+fu_util_inhibit_timeout_cb(FuUtilInhibitHelper *helper)
+{
+	FuUtilPrivate *priv = helper->priv;
+	g_autoptr(GError) error_local = NULL;
+
+	if (!fwupd_client_uninhibit(priv->client,
+				    helper->inhibit_id,
+				    priv->cancellable,
+				    &error_local)) {
+		g_warning("failed to auto-uninhibit: %s", error_local->message);
+	}
+	g_main_loop_quit(priv->loop);
+	return G_SOURCE_REMOVE;
+}
+
 static gboolean
 fu_util_inhibit(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	const gchar *reason = "not set";
-	g_autofree gchar *inhibit_id = NULL;
+	guint64 timeout_ms = 0;
+	g_autoptr(FuUtilInhibitHelper) helper = g_new0(FuUtilInhibitHelper, 1);
 	g_autoptr(GString) str = g_string_new(NULL);
 
 	if (g_strv_length(values) > 0)
-		reason = values[1];
+		reason = values[0];
+	if (g_strv_length(values) > 1) {
+		if (!fu_strtoull(values[1],
+				 &timeout_ms,
+				 0,
+				 G_MAXUINT32,
+				 FU_INTEGER_BASE_AUTO,
+				 error))
+			return FALSE;
+	}
 
 	/* inhibit then wait */
-	inhibit_id = fwupd_client_inhibit(priv->client, reason, priv->cancellable, error);
-	if (inhibit_id == NULL)
+	helper->priv = priv;
+	helper->inhibit_id = fwupd_client_inhibit(priv->client, reason, priv->cancellable, error);
+	if (helper->inhibit_id == NULL)
 		return FALSE;
+	if (timeout_ms > 0) {
+		g_autoptr(GSource) source = g_timeout_source_new(timeout_ms);
+		g_source_set_callback(source,
+				      (GSourceFunc)fu_util_inhibit_timeout_cb,
+				      helper,
+				      NULL);
+		g_source_attach(source, priv->main_ctx);
+	}
 
 	/* TRANSLATORS: the inhibit ID is a short string like dbus-123456 */
-	g_string_append_printf(str, _("Inhibit ID is %s."), inhibit_id);
+	g_string_append_printf(str, _("Inhibit ID is %s."), helper->inhibit_id);
 	g_string_append(str, "\n");
+	if (timeout_ms > 0) {
+		g_string_append_printf(str,
+				       /* TRANSLATORS: we can auto-uninhibit after a timeout */
+				       _("Automatically uninhibiting in %ums…"),
+				       (guint)timeout_ms);
+		g_string_append(str, "\n");
+	}
 	/* TRANSLATORS: CTRL^C [holding control, and then pressing C] will exit the program */
 	g_string_append(str, _("Use CTRL^C to cancel."));
 	/* TRANSLATORS: this CLI tool is now preventing system updates */
@@ -1215,9 +1372,6 @@ fu_util_device_test_full(FuUtilPrivate *priv,
 			 FuUtilDeviceTestHelper *helper,
 			 GError **error)
 {
-	g_autoptr(JsonBuilder) builder = json_builder_new();
-	helper->builder = builder;
-
 	/* required for interactive devices */
 	priv->current_operation = FU_UTIL_OPERATION_UPDATE;
 
@@ -1230,25 +1384,45 @@ fu_util_device_test_full(FuUtilPrivate *priv,
 		return FALSE;
 	}
 
+	/* get the report metadata */
+	helper->report_metadata =
+	    fwupd_client_get_report_metadata(priv->client, priv->cancellable, error);
+	if (helper->report_metadata == NULL)
+		return FALSE;
+
 	/* prepare to save the data as JSON */
-	json_builder_begin_object(builder);
+	json_builder_begin_object(helper->builder);
 
 	/* process all the files */
-	json_builder_set_member_name(builder, "results");
-	json_builder_begin_array(builder);
+	json_builder_set_member_name(helper->builder, "results");
+	json_builder_begin_array(helper->builder);
 	for (guint i = 0; values[i] != NULL; i++) {
-		json_builder_begin_object(builder);
+		json_builder_begin_object(helper->builder);
 		if (!fu_util_device_test_filename(priv, helper, values[i], error))
 			return FALSE;
-		json_builder_end_object(builder);
+		json_builder_end_object(helper->builder);
 	}
-	json_builder_end_array(builder);
+	json_builder_end_array(helper->builder);
 
 	/* dump to screen as JSON format */
-	json_builder_end_object(builder);
+	json_builder_end_object(helper->builder);
 	if (priv->as_json) {
-		if (!fu_util_print_builder(priv->console, builder, error))
+		if (!fu_util_print_builder(priv->console, helper->builder, error))
 			return FALSE;
+	}
+
+	/* just warning */
+	if (helper->nr_skipped > 0) {
+		g_autoptr(GString) str = g_string_new(NULL);
+		g_string_append_printf(
+		    str,
+		    /* TRANSLATORS: device tests can be specific to a CPU type */
+		    ngettext("%u test was skipped", "%u tests were skipped", helper->nr_skipped),
+		    helper->nr_skipped);
+		fu_console_print_full(priv->console,
+				      FU_CONSOLE_PRINT_FLAG_WARNING,
+				      "%s\n",
+				      str->str);
 	}
 
 	/* we need all to pass for a zero return code */
@@ -1280,15 +1454,18 @@ fu_util_device_test_full(FuUtilPrivate *priv,
 static gboolean
 fu_util_device_emulate(FuUtilPrivate *priv, gchar **values, GError **error)
 {
-	FuUtilDeviceTestHelper helper = {.use_emulation = TRUE};
-	return fu_util_device_test_full(priv, values, &helper, error);
+	g_autoptr(FuUtilDeviceTestHelper) helper = fu_util_device_test_helper_new();
+	helper->use_emulation = TRUE;
+	priv->filter_device_include |= FWUPD_DEVICE_FLAG_EMULATED;
+	return fu_util_device_test_full(priv, values, helper, error);
 }
 
 static gboolean
 fu_util_device_test(FuUtilPrivate *priv, gchar **values, GError **error)
 {
-	FuUtilDeviceTestHelper helper = {.use_emulation = FALSE};
-	return fu_util_device_test_full(priv, values, &helper, error);
+	g_autoptr(FuUtilDeviceTestHelper) helper = fu_util_device_test_helper_new();
+	priv->filter_device_exclude |= FWUPD_DEVICE_FLAG_EMULATED;
+	return fu_util_device_test_full(priv, values, helper, error);
 }
 
 static gboolean
@@ -1869,6 +2046,14 @@ fu_util_get_device_or_prompt(FuUtilPrivate *priv, gchar **values, GError **error
 		return fu_util_get_device_by_id(priv, values[0], error);
 	}
 
+	if (priv->as_json) {
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_ARGS,
+				    "device ID required");
+		return NULL;
+	}
+
 	/* get all devices from daemon */
 	devices = fwupd_client_get_devices(priv->client, priv->cancellable, error);
 	if (devices == NULL)
@@ -2340,7 +2525,7 @@ fu_util_perhaps_refresh_remotes(FuUtilPrivate *priv, GError **error)
 	const guint64 age_limit_days = 30;
 
 	/* we don't want to ask anything */
-	if (priv->no_metadata_check) {
+	if (priv->no_metadata_check || priv->as_json) {
 		g_debug("skipping metadata check");
 		return TRUE;
 	}
@@ -2897,8 +3082,10 @@ fu_util_update(FuUtilPrivate *priv, gchar **values, GError **error)
 		const gchar *device_id = fwupd_device_get_id(dev);
 		g_autoptr(FwupdRelease) rel = NULL;
 		g_autoptr(GPtrArray) rels = NULL;
-		g_autoptr(GError) error_local = NULL;
+		g_autoptr(GError) error_install = NULL;
+		g_autoptr(GError) error_report = NULL;
 		gboolean dev_skip_byid = TRUE;
+		gboolean ret;
 
 		/* not going to have results, so save a D-Bus round-trip */
 		if (!fwupd_device_has_flag(dev, FWUPD_DEVICE_FLAG_UPDATABLE) &&
@@ -2929,11 +3116,11 @@ fu_util_update(FuUtilPrivate *priv, gchar **values, GError **error)
 		rels = fwupd_client_get_upgrades(priv->client,
 						 fwupd_device_get_id(dev),
 						 priv->cancellable,
-						 &error_local);
+						 &error_install);
 		if (rels == NULL) {
 			g_ptr_array_add(devices_latest, dev);
 			/* discard the actual reason from user, but leave for debugging */
-			g_debug("%s", error_local->message);
+			g_debug("%s", error_install->message);
 			continue;
 		}
 		for (guint j = 0; j < rels->len; j++) {
@@ -2954,26 +3141,37 @@ fu_util_update(FuUtilPrivate *priv, gchar **values, GError **error)
 			continue;
 		}
 
-		if (!fu_util_update_device_with_release(priv, dev, rel, &error_local)) {
-			if (g_error_matches(error_local, FWUPD_ERROR, FWUPD_ERROR_NOTHING_TO_DO)) {
-				g_debug("ignoring %s: %s",
-					fwupd_device_get_id(dev),
-					error_local->message);
-				continue;
-			}
-			g_propagate_error(error, g_steal_pointer(&error_local));
-			return FALSE;
+		ret = fu_util_update_device_with_release(priv, dev, rel, &error_install);
+		if (!ret &&
+		    g_error_matches(error_install, FWUPD_ERROR, FWUPD_ERROR_NOTHING_TO_DO)) {
+			g_debug("ignoring %s: %s",
+				fwupd_device_get_id(dev),
+				error_install->message);
+			continue;
 		}
-
-		fu_util_display_current_message(priv);
+		if (ret)
+			fu_util_display_current_message(priv);
 
 		/* send report if we're supposed to */
-		if (!fu_util_maybe_send_reports(priv, rel, error))
+		if (!fu_util_maybe_send_reports(priv, rel, &error_report)) {
+			/* install failed, report failed */
+			if (!ret) {
+				g_warning("%s", error_report->message);
+				/* install succeeded, but report failed */
+			} else {
+				g_propagate_error(error, g_steal_pointer(&error_report));
+				return FALSE;
+			}
+		}
+
+		if (!ret) {
+			g_propagate_error(error, g_steal_pointer(&error_install));
 			return FALSE;
+		}
 	}
 
 	/* show warnings */
-	if (devices_latest->len > 0) {
+	if (devices_latest->len > 0 && !priv->as_json) {
 		fu_console_print_literal(priv->console,
 					 /* TRANSLATORS: message letting the user know no device
 					  * upgrade available */
@@ -2983,7 +3181,7 @@ fu_util_update(FuUtilPrivate *priv, gchar **values, GError **error)
 			fu_console_print(priv->console, " • %s", fwupd_device_get_name(dev));
 		}
 	}
-	if (devices_unsupported->len > 0) {
+	if (devices_unsupported->len > 0 && !priv->as_json) {
 		fu_console_print_literal(priv->console,
 					 /* TRANSLATORS: message letting the user know no
 					  * device upgrade available due to missing on LVFS */
@@ -2993,7 +3191,7 @@ fu_util_update(FuUtilPrivate *priv, gchar **values, GError **error)
 			fu_console_print(priv->console, " • %s", fwupd_device_get_name(dev));
 		}
 	}
-	if (devices_pending->len > 0) {
+	if (devices_pending->len > 0 && !priv->as_json) {
 		fu_console_print_literal(
 		    priv->console,
 		    /* TRANSLATORS: message letting the user there is an update
@@ -3025,7 +3223,7 @@ fu_util_update(FuUtilPrivate *priv, gchar **values, GError **error)
 	}
 
 	/* we don't want to ask anything */
-	if (priv->no_reboot_check) {
+	if (priv->no_reboot_check || priv->as_json) {
 		g_debug("skipping reboot check");
 		return TRUE;
 	}
@@ -3086,6 +3284,9 @@ fu_util_remote_enable(FuUtilPrivate *priv, gchar **values, GError **error)
 					error))
 		return FALSE;
 
+	if (priv->as_json)
+		return TRUE;
+
 	/* ask for permission to refresh */
 	if (priv->no_remote_check || fwupd_remote_get_kind(remote) != FWUPD_REMOTE_KIND_DOWNLOAD) {
 		/* TRANSLATORS: success message */
@@ -3142,6 +3343,9 @@ fu_util_remote_disable(FuUtilPrivate *priv, gchar **values, GError **error)
 					error))
 		return FALSE;
 
+	if (priv->as_json)
+		return TRUE;
+
 	/* TRANSLATORS: success message */
 	fu_console_print_literal(priv->console, _("Successfully disabled remote"));
 	return TRUE;
@@ -3150,9 +3354,11 @@ fu_util_remote_disable(FuUtilPrivate *priv, gchar **values, GError **error)
 static gboolean
 fu_util_downgrade(FuUtilPrivate *priv, gchar **values, GError **error)
 {
+	gboolean ret;
 	g_autoptr(FwupdDevice) dev = NULL;
 	g_autoptr(FwupdRelease) rel = NULL;
 	g_autoptr(GPtrArray) rels = NULL;
+	g_autoptr(GError) error_report = NULL;
 
 	if (priv->flags & FWUPD_INSTALL_FLAG_ALLOW_REINSTALL) {
 		g_set_error_literal(error,
@@ -3189,13 +3395,24 @@ fu_util_downgrade(FuUtilPrivate *priv, gchar **values, GError **error)
 	/* update the console if composite devices are also updated */
 	priv->current_operation = FU_UTIL_OPERATION_DOWNGRADE;
 	priv->flags |= FWUPD_INSTALL_FLAG_ALLOW_OLDER;
-	if (!fu_util_update_device_with_release(priv, dev, rel, error))
-		return FALSE;
-
-	fu_util_display_current_message(priv);
+	ret = fu_util_update_device_with_release(priv, dev, rel, error);
+	if (ret)
+		fu_util_display_current_message(priv);
 
 	/* send report if we're supposed to */
-	if (!fu_util_maybe_send_reports(priv, rel, error))
+	if (!fu_util_maybe_send_reports(priv, rel, &error_report)) {
+		/* install failed, report failed */
+		if (!ret) {
+			g_warning("%s", error_report->message);
+			/* install succeeded, but report failed */
+		} else {
+			g_propagate_error(error, g_steal_pointer(&error_report));
+			return FALSE;
+		}
+	}
+
+	/* install failed */
+	if (!ret)
 		return FALSE;
 
 	/* we don't want to ask anything */
@@ -3210,8 +3427,10 @@ fu_util_downgrade(FuUtilPrivate *priv, gchar **values, GError **error)
 static gboolean
 fu_util_reinstall(FuUtilPrivate *priv, gchar **values, GError **error)
 {
+	gboolean ret;
 	g_autoptr(FwupdRelease) rel = NULL;
 	g_autoptr(FwupdDevice) dev = NULL;
+	g_autoptr(GError) error_report = NULL;
 
 	priv->filter_device_include |= FWUPD_DEVICE_FLAG_SUPPORTED;
 	dev = fu_util_get_device_or_prompt(priv, values, error);
@@ -3227,12 +3446,24 @@ fu_util_reinstall(FuUtilPrivate *priv, gchar **values, GError **error)
 	/* update the console if composite devices are also updated */
 	priv->current_operation = FU_UTIL_OPERATION_INSTALL;
 	priv->flags |= FWUPD_INSTALL_FLAG_ALLOW_REINSTALL;
-	if (!fu_util_update_device_with_release(priv, dev, rel, error))
-		return FALSE;
-	fu_util_display_current_message(priv);
+	ret = fu_util_update_device_with_release(priv, dev, rel, error);
+	if (ret)
+		fu_util_display_current_message(priv);
 
 	/* send report if we're supposed to */
-	if (!fu_util_maybe_send_reports(priv, rel, error))
+	if (!fu_util_maybe_send_reports(priv, rel, &error_report)) {
+		/* install failed, report failed */
+		if (!ret) {
+			g_warning("%s", error_report->message);
+			/* install succeeded, but report failed */
+		} else {
+			g_propagate_error(error, g_steal_pointer(&error_report));
+			return FALSE;
+		}
+	}
+
+	/* install failed */
+	if (!ret)
 		return FALSE;
 
 	/* we don't want to ask anything */
@@ -3247,8 +3478,10 @@ fu_util_reinstall(FuUtilPrivate *priv, gchar **values, GError **error)
 static gboolean
 fu_util_install(FuUtilPrivate *priv, gchar **values, GError **error)
 {
+	gboolean ret;
 	g_autoptr(FwupdDevice) dev = NULL;
 	g_autoptr(FwupdRelease) rel = NULL;
+	g_autoptr(GError) error_report = NULL;
 
 	/* fall back for CLI compatibility */
 	if (g_strv_length(values) >= 1) {
@@ -3282,14 +3515,24 @@ fu_util_install(FuUtilPrivate *priv, gchar **values, GError **error)
 
 	/* allow all actions */
 	priv->current_operation = FU_UTIL_OPERATION_INSTALL;
-	priv->flags |= FWUPD_INSTALL_FLAG_ALLOW_REINSTALL;
-	priv->flags |= FWUPD_INSTALL_FLAG_ALLOW_OLDER;
-	if (!fu_util_update_device_with_release(priv, dev, rel, error))
-		return FALSE;
-	fu_util_display_current_message(priv);
+	ret = fu_util_update_device_with_release(priv, dev, rel, error);
+	if (ret)
+		fu_util_display_current_message(priv);
 
 	/* send report if we're supposed to */
-	if (!fu_util_maybe_send_reports(priv, rel, error))
+	if (!fu_util_maybe_send_reports(priv, rel, &error_report)) {
+		/* install failed, report failed */
+		if (!ret) {
+			g_warning("%s", error_report->message);
+			/* install succeeded, but report failed */
+		} else {
+			g_propagate_error(error, g_steal_pointer(&error_report));
+			return FALSE;
+		}
+	}
+
+	/* install failed */
+	if (!ret)
 		return FALSE;
 
 	/* we don't want to ask anything */
@@ -3311,10 +3554,12 @@ static gboolean
 fu_util_switch_branch(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	const gchar *branch;
+	gboolean ret;
 	g_autoptr(FwupdRelease) rel = NULL;
 	g_autoptr(GPtrArray) rels = NULL;
 	g_autoptr(GPtrArray) branches = g_ptr_array_new_with_free_func(g_free);
 	g_autoptr(FwupdDevice) dev = NULL;
+	g_autoptr(GError) error_report = NULL;
 
 	/* find the device and check it has multiple branches */
 	priv->filter_device_include |= FWUPD_DEVICE_FLAG_HAS_MULTIPLE_BRANCHES;
@@ -3410,12 +3655,24 @@ fu_util_switch_branch(FuUtilPrivate *priv, gchar **values, GError **error)
 	priv->current_operation = FU_UTIL_OPERATION_INSTALL;
 	priv->flags |= FWUPD_INSTALL_FLAG_ALLOW_REINSTALL;
 	priv->flags |= FWUPD_INSTALL_FLAG_ALLOW_BRANCH_SWITCH;
-	if (!fu_util_update_device_with_release(priv, dev, rel, error))
-		return FALSE;
-	fu_util_display_current_message(priv);
+	ret = fu_util_update_device_with_release(priv, dev, rel, error);
+	if (ret)
+		fu_util_display_current_message(priv);
 
 	/* send report if we're supposed to */
-	if (!fu_util_maybe_send_reports(priv, rel, error))
+	if (!fu_util_maybe_send_reports(priv, rel, &error_report)) {
+		/* install failed, report failed */
+		if (!ret) {
+			g_warning("%s", error_report->message);
+			/* install succeeded, but report failed */
+		} else {
+			g_propagate_error(error, g_steal_pointer(&error_report));
+			return FALSE;
+		}
+	}
+
+	/* install failed */
+	if (!ret)
 		return FALSE;
 
 	/* we don't want to ask anything */
@@ -3607,6 +3864,10 @@ fu_util_modify_config(FuUtilPrivate *priv, gchar **values, GError **error)
 				    "Invalid arguments: [SECTION] KEY VALUE expected");
 		return FALSE;
 	}
+
+	if (priv->as_json)
+		return TRUE;
+
 	if (!priv->assume_yes) {
 		if (!fu_console_input_bool(priv->console,
 					   FALSE,
@@ -3630,7 +3891,7 @@ static gboolean
 fu_util_reset_config(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	/* check args */
-	if (g_strv_length(values) != 2) {
+	if (g_strv_length(values) != 1) {
 		g_set_error_literal(error,
 				    FWUPD_ERROR,
 				    FWUPD_ERROR_INVALID_ARGS,
@@ -3639,6 +3900,10 @@ fu_util_reset_config(FuUtilPrivate *priv, gchar **values, GError **error)
 	}
 	if (!fwupd_client_reset_config(priv->client, values[0], priv->cancellable, error))
 		return FALSE;
+
+	if (priv->as_json)
+		return TRUE;
+
 	if (!priv->assume_yes) {
 		if (!fu_console_input_bool(priv->console,
 					   FALSE,
@@ -4388,6 +4653,9 @@ fu_util_show_plugin_warnings(FuUtilPrivate *priv)
 	FwupdPluginFlags flags = FWUPD_PLUGIN_FLAG_NONE;
 	g_autoptr(GPtrArray) plugins = NULL;
 
+	if (priv->as_json)
+		return;
+
 	/* get plugins from daemon, ignoring if the daemon is too old */
 	plugins = fwupd_client_get_plugins(priv->client, priv->cancellable, NULL);
 	if (plugins == NULL)
@@ -4502,7 +4770,7 @@ fu_util_get_bios_setting(FuUtilPrivate *priv, gchar **values, GError **error)
 	if (!found) {
 		g_set_error_literal(error,
 				    FWUPD_ERROR,
-				    FWUPD_ERROR_INVALID_ARGS,
+				    FWUPD_ERROR_NOT_FOUND,
 				    /* TRANSLATORS: error message */
 				    _("Unable to find attribute"));
 		return FALSE;
@@ -4567,27 +4835,37 @@ fu_util_report_devices(FuUtilPrivate *priv, gchar **values, GError **error)
 	if (data == NULL)
 		return FALSE;
 
-	/* show the user the entire data blob */
-	fu_console_print_kv(priv->console, _("Target"), report_uri);
-	fu_console_print_kv(priv->console, _("Payload"), data);
-	fu_console_print(priv->console,
-			 /* TRANSLATORS: explain why we want to upload */
-			 _("Uploading a device list allows the %s team to know what hardware "
-			   "exists, and allows us to put pressure on vendors that do not upload "
-			   "firmware updates for their hardware."),
-			 fwupd_remote_get_title(remote));
-	if (!fu_console_input_bool(priv->console,
-				   TRUE,
-				   "%s (%s)",
-				   /* TRANSLATORS: ask the user to upload */
-				   _("Upload data now?"),
-				   /* TRANSLATORS: metadata is downloaded */
-				   _("Requires internet connection"))) {
-		g_set_error_literal(error,
-				    FWUPD_ERROR,
-				    FWUPD_ERROR_NOTHING_TO_DO,
-				    "Declined upload");
-		return FALSE;
+	if (priv->as_json) {
+		if (!priv->assume_yes) {
+			g_set_error_literal(error,
+					    FWUPD_ERROR,
+					    FWUPD_ERROR_INVALID_ARGS,
+					    "pass --yes to enable uploads");
+			return FALSE;
+		}
+	} else {
+		/* show the user the entire data blob */
+		fu_console_print_kv(priv->console, _("Target"), report_uri);
+		fu_console_print_kv(priv->console, _("Payload"), data);
+		fu_console_print(priv->console,
+				 /* TRANSLATORS: explain why we want to upload */
+				 _("Uploading a device list allows the %s team to know what hardware "
+				   "exists, and allows us to put pressure on vendors that do not upload "
+				   "firmware updates for their hardware."),
+				 fwupd_remote_get_title(remote));
+		if (!fu_console_input_bool(priv->console,
+					   TRUE,
+					   "%s (%s)",
+					   /* TRANSLATORS: ask the user to upload */
+					   _("Upload data now?"),
+					   /* TRANSLATORS: metadata is downloaded */
+					   _("Requires internet connection"))) {
+			g_set_error_literal(error,
+					    FWUPD_ERROR,
+					    FWUPD_ERROR_NOTHING_TO_DO,
+					    "Declined upload");
+			return FALSE;
+		}
 	}
 
 	/* send to the LVFS */
@@ -4602,9 +4880,12 @@ fu_util_report_devices(FuUtilPrivate *priv, gchar **values, GError **error)
 		return FALSE;
 
 	/* success */
-	fu_console_print_literal(priv->console,
-				 /* TRANSLATORS: success, so say thank you to the user */
-				 _("Device list uploaded successfully, thanks!"));
+	if (!priv->as_json) {
+		fu_console_print_literal(priv->console,
+					 /* TRANSLATORS: success, so say thank you to the user */
+					 _("Device list uploaded successfully, thanks!"));
+	}
+
 	return TRUE;
 }
 
@@ -4775,6 +5056,9 @@ main(int argc, char *argv[])
 	g_autoptr(GError) error = NULL;
 	g_autoptr(GError) error_console = NULL;
 	g_autoptr(GPtrArray) cmd_array = fu_util_cmd_array_new();
+#ifdef HAVE_POLKIT
+	g_autoptr(FuPolkitAgent) polkit_agent = fu_polkit_agent_new();
+#endif
 	g_autofree gchar *cmd_descriptions = NULL;
 	g_autofree gchar *filter_device = NULL;
 	g_autofree gchar *filter_release = NULL;
@@ -5263,7 +5547,7 @@ main(int argc, char *argv[])
 	fu_util_cmd_array_add(cmd_array,
 			      "inhibit",
 			      /* TRANSLATORS: command argument: uppercase, spaces->dashes */
-			      _("[REASON]"),
+			      _("[REASON] [TIMEOUT]"),
 			      /* TRANSLATORS: command description */
 			      _("Inhibit the system to prevent upgrades"),
 			      fu_util_inhibit);
@@ -5487,7 +5771,7 @@ main(int argc, char *argv[])
 	/* start polkit tty agent to listen for password requests */
 	if (is_interactive) {
 		g_autoptr(GError) error_polkit = NULL;
-		if (!fu_polkit_agent_open(&error_polkit)) {
+		if (!fu_polkit_agent_open(polkit_agent, &error_polkit)) {
 			fu_console_print(priv->console,
 					 "Failed to open polkit agent: %s",
 					 error_polkit->message);
@@ -5549,11 +5833,13 @@ main(int argc, char *argv[])
 		return EXIT_SUCCESS;
 	}
 
-	/* show user-visible warnings from the plugins */
-	fu_util_show_plugin_warnings(priv);
+	if (!priv->as_json) {
+		/* show user-visible warnings from the plugins */
+		fu_util_show_plugin_warnings(priv);
 
-	/* show any unsupported warnings */
-	fu_util_show_unsupported_warning(priv->console);
+		/* show any unsupported warnings */
+		fu_util_show_unsupported_warning(priv->console);
+	}
 
 	/* we know the runtime daemon version now */
 	fwupd_client_set_user_agent_for_package(priv->client, g_get_prgname(), PACKAGE_VERSION);
@@ -5600,7 +5886,8 @@ main(int argc, char *argv[])
 		}
 #endif
 		fu_util_print_error(priv, error);
-		if (g_error_matches(error, FWUPD_ERROR, FWUPD_ERROR_INVALID_ARGS)) {
+		if (!priv->as_json &&
+		    g_error_matches(error, FWUPD_ERROR, FWUPD_ERROR_INVALID_ARGS)) {
 			g_autofree gchar *cmd = g_strdup_printf("%s --help", g_get_prgname());
 			g_autoptr(GString) str = g_string_new("\n");
 			/* TRANSLATORS: explain how to get help,
@@ -5609,15 +5896,12 @@ main(int argc, char *argv[])
 			fu_console_print_literal(priv->console, str->str);
 		} else if (g_error_matches(error, FWUPD_ERROR, FWUPD_ERROR_NOTHING_TO_DO))
 			return EXIT_NOTHING_TO_DO;
+		else if (g_error_matches(error, FWUPD_ERROR, FWUPD_ERROR_NOT_REACHABLE))
+			return EXIT_NOT_REACHABLE;
 		else if (g_error_matches(error, FWUPD_ERROR, FWUPD_ERROR_NOT_FOUND))
 			return EXIT_NOT_FOUND;
 		return EXIT_FAILURE;
 	}
-
-#ifdef HAVE_POLKIT
-	/* stop listening for polkit questions */
-	fu_polkit_agent_close();
-#endif
 
 	/* success */
 	return EXIT_SUCCESS;

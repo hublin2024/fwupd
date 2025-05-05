@@ -412,10 +412,6 @@ msgstr "已取消"
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "无法应用 dbx 更新因其更新已应用。"
 
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "无法在  Live 系统介质上应用更新"
-
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
 msgstr "已变更"
@@ -824,6 +820,10 @@ msgstr "需要文件名"
 #. TRANSLATORS: command line option
 msgid "Filter with a set of device flags using a ~ prefix to exclude, e.g. 'internal,~needs-reboot'"
 msgstr "筛选器为一组设备标志，使用 ~ 前缀来排除设备，示例 \"internal,~needs-reboot\""
+
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "固件库 URI"
 
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"

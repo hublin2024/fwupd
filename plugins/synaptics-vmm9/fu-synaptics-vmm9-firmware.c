@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Richard hughes <Richard@hughsie.com>
+ * Copyright 2024 Richard Hughes <richard@hughsie.com>
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
@@ -45,7 +45,7 @@ fu_synaptics_vmm9_firmware_validate(FuFirmware *firmware,
 static gboolean
 fu_synaptics_vmm9_firmware_parse(FuFirmware *firmware,
 				 GInputStream *stream,
-				 FwupdInstallFlags flags,
+				 FuFirmwareParseFlags flags,
 				 GError **error)
 {
 	FuSynapticsVmm9Firmware *self = FU_SYNAPTICS_VMM9_FIRMWARE(firmware);

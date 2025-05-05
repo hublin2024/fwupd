@@ -158,9 +158,7 @@ fu_genesys_usbhub_firmware_verify_checksum(GInputStream *stream, GError **error)
 }
 
 gboolean
-fu_genesys_usbhub_firmware_calculate_size(GInputStream *stream,
-					  gsize *size,
-					  GError **error)
+fu_genesys_usbhub_firmware_calculate_size(GInputStream *stream, gsize *size, GError **error)
 {
 	guint8 kbs = 0;
 	if (!fu_input_stream_read_u8(stream, GENESYS_USBHUB_CODE_SIZE_OFFSET, &kbs, error)) {
@@ -215,7 +213,7 @@ fu_genesys_usbhub_firmware_validate(FuFirmware *firmware,
 static gboolean
 fu_genesys_usbhub_firmware_parse(FuFirmware *firmware,
 				 GInputStream *stream,
-				 FwupdInstallFlags flags,
+				 FuFirmwareParseFlags flags,
 				 GError **error)
 {
 	FuGenesysUsbhubFirmware *self = FU_GENESYS_USBHUB_FIRMWARE(firmware);
@@ -272,9 +270,7 @@ fu_genesys_usbhub_firmware_parse(FuFirmware *firmware,
 		break;
 	case ISP_MODEL_HUB_GL3523: {
 		if (self->chip.revision == 50) {
-			if (!fu_genesys_usbhub_firmware_calculate_size(stream,
-								       &code_size,
-								       error))
+			if (!fu_genesys_usbhub_firmware_calculate_size(stream, &code_size, error))
 				return FALSE;
 		} else {
 			code_size = 0x6000;
@@ -299,7 +295,7 @@ fu_genesys_usbhub_firmware_parse(FuFirmware *firmware,
 		return FALSE;
 
 	/* calculate checksum */
-	if ((flags & FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM) == 0) {
+	if ((flags & FU_FIRMWARE_PARSE_FLAG_IGNORE_CHECKSUM) == 0) {
 		if (!fu_genesys_usbhub_firmware_verify_checksum(stream_trunc, error))
 			return FALSE;
 	}
@@ -316,7 +312,7 @@ fu_genesys_usbhub_firmware_parse(FuFirmware *firmware,
 		g_autoptr(FuFirmware) firmware_sub = NULL;
 		firmware_sub = fu_firmware_new_from_gtypes(stream,
 							   offset,
-							   flags | FWUPD_INSTALL_FLAG_NO_SEARCH,
+							   flags | FU_FIRMWARE_PARSE_FLAG_NO_SEARCH,
 							   error,
 							   FU_TYPE_GENESYS_USBHUB_DEV_FIRMWARE,
 							   FU_TYPE_GENESYS_USBHUB_PD_FIRMWARE,
@@ -517,7 +513,7 @@ fu_genesys_usbhub_firmware_finalize(GObject *object)
 {
 	FuGenesysUsbhubFirmware *self = FU_GENESYS_USBHUB_FIRMWARE(object);
 	if (self->st_static_ts != NULL)
-		g_byte_array_unref(self->st_static_ts);
+		fu_struct_genesys_ts_static_unref(self->st_static_ts);
 	G_OBJECT_CLASS(fu_genesys_usbhub_firmware_parent_class)->finalize(object);
 }
 

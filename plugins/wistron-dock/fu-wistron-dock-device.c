@@ -333,7 +333,7 @@ static FuFirmware *
 fu_wistron_dock_device_prepare_firmware(FuDevice *device,
 					GInputStream *stream,
 					FuProgress *progress,
-					FwupdInstallFlags flags,
+					FuFirmwareParseFlags flags,
 					GError **error)
 {
 	g_autoptr(FuFirmware) firmware = fu_archive_firmware_new();
@@ -795,6 +795,7 @@ static void
 fu_wistron_dock_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 20, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 5, "attach");
@@ -814,7 +815,6 @@ fu_wistron_dock_device_init(FuWistronDockDevice *self)
 	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_QUAD);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UPDATABLE);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_USABLE_DURING_UPDATE);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_add_request_flag(FU_DEVICE(self), FWUPD_REQUEST_FLAG_ALLOW_GENERIC_MESSAGE);
 	fu_device_set_remove_delay(FU_DEVICE(self), 5 * 60 * 1000);
 }

@@ -191,8 +191,6 @@ fwupd_device_flag_to_string(FwupdDeviceFlags device_flag)
 		return "can-emulation-tag";
 	if (device_flag == FWUPD_DEVICE_FLAG_INSTALL_SKIP_VERSION_CHECK)
 		return "install-skip-version-check";
-	if (device_flag == FWUPD_DEVICE_FLAG_UNKNOWN)
-		return "unknown";
 	return NULL;
 }
 
@@ -773,6 +771,8 @@ fwupd_version_format_from_string(const gchar *str)
 		return FWUPD_VERSION_FORMAT_INTEL_ME;
 	if (g_strcmp0(str, "intel-me2") == 0)
 		return FWUPD_VERSION_FORMAT_INTEL_ME2;
+	if (g_strcmp0(str, "intel-csme19") == 0)
+		return FWUPD_VERSION_FORMAT_INTEL_CSME19;
 	if (g_strcmp0(str, "surface-legacy") == 0)
 		return FWUPD_VERSION_FORMAT_SURFACE_LEGACY;
 	if (g_strcmp0(str, "surface") == 0)
@@ -815,6 +815,8 @@ fwupd_version_format_to_string(FwupdVersionFormat kind)
 		return "intel-me";
 	if (kind == FWUPD_VERSION_FORMAT_INTEL_ME2)
 		return "intel-me2";
+	if (kind == FWUPD_VERSION_FORMAT_INTEL_CSME19)
+		return "intel-csme19";
 	if (kind == FWUPD_VERSION_FORMAT_SURFACE_LEGACY)
 		return "surface-legacy";
 	if (kind == FWUPD_VERSION_FORMAT_SURFACE)
@@ -826,6 +828,37 @@ fwupd_version_format_to_string(FwupdVersionFormat kind)
 	if (kind == FWUPD_VERSION_FORMAT_DELL_BIOS_MSB)
 		return "dell-bios-msb";
 	return NULL;
+}
+
+/**
+ * fwupd_install_flags_from_string:
+ * @str: (nullable): a string, e.g. `allow-reinstall`
+ *
+ * Converts text to an install flag
+ *
+ * Returns: an enumerated install flag, e.g. %FWUPD_INSTALL_FLAG_ALLOW_REINSTALL
+ *
+ * Since: 2.0.4
+ **/
+FwupdInstallFlags
+fwupd_install_flags_from_string(const gchar *str)
+{
+	if (g_strcmp0(str, "none") == 0)
+		return FWUPD_INSTALL_FLAG_NONE;
+	if (g_strcmp0(str, "allow-reinstall") == 0)
+		return FWUPD_INSTALL_FLAG_ALLOW_REINSTALL;
+	if (g_strcmp0(str, "allow-older") == 0)
+		return FWUPD_INSTALL_FLAG_ALLOW_OLDER;
+	if (g_strcmp0(str, "force") == 0)
+		return FWUPD_INSTALL_FLAG_FORCE;
+	if (g_strcmp0(str, "no-history") == 0)
+		return FWUPD_INSTALL_FLAG_NO_HISTORY;
+	if (g_strcmp0(str, "allow-branch-switch") == 0)
+		return FWUPD_INSTALL_FLAG_ALLOW_BRANCH_SWITCH;
+	if (g_strcmp0(str, "ignore-requirements") == 0)
+		return FWUPD_INSTALL_FLAG_IGNORE_REQUIREMENTS;
+
+	return FWUPD_INSTALL_FLAG_UNKNOWN;
 }
 
 /**
@@ -853,12 +886,6 @@ fwupd_install_flags_to_string(FwupdInstallFlags install_flags)
 		return "no-history";
 	if (install_flags == FWUPD_INSTALL_FLAG_ALLOW_BRANCH_SWITCH)
 		return "allow-branch-switch";
-	if (install_flags == FWUPD_INSTALL_FLAG_IGNORE_CHECKSUM)
-		return "ignore-checksum";
-	if (install_flags == FWUPD_INSTALL_FLAG_IGNORE_VID_PID)
-		return "ignore-vid-pid";
-	if (install_flags == FWUPD_INSTALL_FLAG_NO_SEARCH)
-		return "no-search";
 	if (install_flags == FWUPD_INSTALL_FLAG_IGNORE_REQUIREMENTS)
 		return "ignore-requirements";
 	return NULL;

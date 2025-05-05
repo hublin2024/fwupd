@@ -11,7 +11,7 @@ enum FuDellDockBaseType {
 }
 
 #[repr(u8)]
-enum FuDellKestrelEcHidCmd {
+enum FuDellKestrelEcCmd {
     SetDockPkg = 0x01,
     GetDockInfo = 0x02,
     GetDockData = 0x03,
@@ -19,6 +19,14 @@ enum FuDellKestrelEcHidCmd {
     SetModifyLock = 0x0a,
     SetFwupMode = 0x0b,
     SetPassive = 0x0d,
+}
+
+#[repr(C, packed)]
+#[derive(New)]
+struct FuStructDellKestrelEcDatabytes {
+    cmd: FuDellKestrelEcCmd,
+    data_sz: u8,
+    data: [u8; 126],
 }
 
 #[repr(u8)]
@@ -68,41 +76,34 @@ enum FuDellKestrelDockSku {
     T5,
 }
 
-#[repr(u8)]
-enum FuDellKestrelEcRespToChunk {
-    UpdateComplete = 1,
-    SendNextChunk,
-    UpdateFailed,
-}
-
 #[repr(C, packed)]
 #[derive(New, Getters, Parse)]
 struct FuStructDellKestrelDockData {
     dock_configuration: u8,
     dock_type: u8,
-    reserved: u16,
-    module_type: u16,
-    reserved: u16,
-    reserved: u16,
-    reserved: u16,
-    dock_firmware_pkg_ver: u32,
-    module_serial: u64,
-    reserved: u64,
+    reserved: u16le,
+    module_type: u16le,
+    board_id: u16le,
+    reserved: u16le,
+    reserved: u16le,
+    dock_firmware_pkg_ver: u32be,
+    module_serial: u64le,
+    reserved: u64le,
     service_tag: [char; 7],
     marketing_name: [char; 32],
-    reserved: u32,
-    reserved: u32,
-    reserved: u32,
+    reserved: u32le,
+    reserved: u32le,
+    reserved: u32le,
     reserved: u8,
-    dock_status: u32,
-    reserved: u16,
-    reserved: u16,
+    dock_status: u32le,
+    reserved: u16le,
+    reserved: u16le,
     dock_mac_addr: [u8; 6],
-    reserved: u32,
-    reserved: u32,
-    reserved: u32,
-    reserved: u32,
-    reserved: u16,
+    reserved: u32le,
+    reserved: u32le,
+    reserved: u32le,
+    reserved: u32le,
+    reserved: u16le,
     eppid: u8,
     reserved: [u8; 74],
 }

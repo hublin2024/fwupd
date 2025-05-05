@@ -73,7 +73,7 @@ fu_efivars_delete(FuEfivars *self, const gchar *guid, const gchar *name, GError 
 		g_set_error_literal(error, FWUPD_ERROR, FWUPD_ERROR_NOT_SUPPORTED, "not supported");
 		return FALSE;
 	}
-	return efivars_class->delete (self, guid, name, error);
+	return efivars_class->delete(self, guid, name, error);
 }
 
 /**
@@ -671,7 +671,21 @@ fu_efivars_build_boot_order(FuEfivars *self, GError **error, ...)
 }
 
 /**
- * fu_efivars_create_boot_entry_for_volume: (skip)
+ * fu_efivars_create_boot_entry_for_volume:
+ * @self: a #FuEfivars
+ * @idx: boot index, typically 0x0001
+ * @volume: a #FuVolume
+ * @name: a display name, e.g. "Fedora"
+ * @target: an EFI binary, e.g. "shim.efi"
+ * @error: #GError
+ *
+ * Creates a BootXXXX variable for a given volume, name and target.
+ *
+ * If @target does not exist on the volume then a dummy file is created.
+ *
+ * Returns: %TRUE on success
+ *
+ * Since: 2.0.6
  **/
 gboolean
 fu_efivars_create_boot_entry_for_volume(FuEfivars *self,
@@ -757,7 +771,7 @@ fu_efivars_get_boot_data(FuEfivars *self, guint16 idx, GError **error)
  * @blob: #GBytes
  * @error: #GError
  *
- * Sets the raw data of the `BootXXXX` variable.
+ * Sets the raw data of the `BootXXXX` variable. If @blob is %NULL then the boot entry is deleted.
  *
  * Returns: %TRUE for success
  *
@@ -768,8 +782,10 @@ fu_efivars_set_boot_data(FuEfivars *self, guint16 idx, GBytes *blob, GError **er
 {
 	g_autofree gchar *name = g_strdup_printf("Boot%04X", idx);
 	g_return_val_if_fail(FU_IS_EFIVARS(self), FALSE);
-	g_return_val_if_fail(blob != NULL, FALSE);
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+	if (blob == NULL)
+		return fu_efivars_delete(self, FU_EFIVARS_GUID_EFI_GLOBAL, name, error);
 	return fu_efivars_set_data_bytes(self,
 					 FU_EFIVARS_GUID_EFI_GLOBAL,
 					 name,
@@ -809,7 +825,7 @@ fu_efivars_get_boot_entry(FuEfivars *self, guint16 idx, GError **error)
 	if (!fu_firmware_parse_bytes(FU_FIRMWARE(loadopt),
 				     blob,
 				     0x0,
-				     FWUPD_INSTALL_FLAG_NONE,
+				     FU_FIRMWARE_PARSE_FLAG_NONE,
 				     error))
 		return NULL;
 	fu_firmware_set_idx(FU_FIRMWARE(loadopt), idx);
@@ -873,7 +889,7 @@ fu_efivars_get_boot_entries(FuEfivars *self, GError **error)
 
 		loadopt = fu_efivars_get_boot_entry(self, idx, error);
 		if (loadopt == NULL) {
-			g_prefix_error(error, "failed to load Boot%04X: ", i);
+			g_prefix_error(error, "failed to load Boot%04X: ", idx);
 			return NULL;
 		}
 		g_ptr_array_add(array, g_steal_pointer(&loadopt));

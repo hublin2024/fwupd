@@ -655,20 +655,26 @@ fu_cabinet_build_silo(FuCabinet *self, GError **error)
 	/* did we get any valid files */
 	self->silo =
 	    xb_builder_compile(self->builder, XB_BUILDER_COMPILE_FLAG_SINGLE_ROOT, NULL, error);
-	if (self->silo == NULL)
+	if (self->silo == NULL) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 
 	/* build the index */
 	if (!xb_silo_query_build_index(self->silo,
 				       "components/component[@type='firmware']/provides/firmware",
 				       "type",
-				       error))
+				       error)) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 	if (!xb_silo_query_build_index(self->silo,
 				       "components/component[@type='firmware']/provides/firmware",
 				       NULL,
-				       error))
+				       error)) {
+		fwupd_error_convert(error);
 		return FALSE;
+	}
 
 	/* success */
 	return TRUE;
@@ -677,7 +683,7 @@ fu_cabinet_build_silo(FuCabinet *self, GError **error)
 static gboolean
 fu_cabinet_sign_filename(FuCabinet *self,
 			 const gchar *filename,
-			 JcatEngine *jcat_engine,
+			 JcatContext *jcat_context,
 			 JcatFile *jcat_file,
 			 GBytes *cert,
 			 GBytes *privkey,
@@ -685,7 +691,10 @@ fu_cabinet_sign_filename(FuCabinet *self,
 {
 	g_autoptr(FuFirmware) img = NULL;
 	g_autoptr(GBytes) source_blob = NULL;
-	g_autoptr(JcatBlob) jcat_blob = NULL;
+	g_autoptr(JcatBlob) jcat_blob_csum = NULL;
+	g_autoptr(JcatBlob) jcat_blob_sig = NULL;
+	g_autoptr(JcatEngine) jcat_engine_csum = NULL;
+	g_autoptr(JcatEngine) jcat_engine_sig = NULL;
 	g_autoptr(JcatItem) jcat_item = NULL;
 
 	/* sign the file using the engine */
@@ -700,15 +709,31 @@ fu_cabinet_sign_filename(FuCabinet *self,
 		jcat_item = jcat_item_new(filename);
 		jcat_file_add_item(jcat_file, jcat_item);
 	}
-	jcat_blob = jcat_engine_pubkey_sign(jcat_engine,
-					    source_blob,
-					    cert,
-					    privkey,
-					    JCAT_SIGN_FLAG_ADD_TIMESTAMP | JCAT_SIGN_FLAG_ADD_CERT,
-					    error);
-	if (jcat_blob == NULL)
+
+	/* add SHA256 checksum */
+	jcat_engine_csum = jcat_context_get_engine(jcat_context, JCAT_BLOB_KIND_SHA256, error);
+	if (jcat_engine_csum == NULL)
 		return FALSE;
-	jcat_item_add_blob(jcat_item, jcat_blob);
+	jcat_blob_csum =
+	    jcat_engine_self_sign(jcat_engine_csum, source_blob, JCAT_SIGN_FLAG_NONE, error);
+	if (jcat_blob_csum == NULL)
+		return FALSE;
+	jcat_item_add_blob(jcat_item, jcat_blob_csum);
+
+	/* sign using PKCS#7 */
+	jcat_engine_sig = jcat_context_get_engine(jcat_context, JCAT_BLOB_KIND_PKCS7, error);
+	if (jcat_engine_sig == NULL)
+		return FALSE;
+	jcat_blob_sig =
+	    jcat_engine_pubkey_sign(jcat_engine_sig,
+				    source_blob,
+				    cert,
+				    privkey,
+				    JCAT_SIGN_FLAG_ADD_TIMESTAMP | JCAT_SIGN_FLAG_ADD_CERT,
+				    error);
+	if (jcat_blob_sig == NULL)
+		return FALSE;
+	jcat_item_add_blob(jcat_item, jcat_blob_sig);
 	return TRUE;
 }
 
@@ -734,6 +759,7 @@ fu_cabinet_sign_enumerate_metainfo(FuCabinet *self, GPtrArray *files, GError **e
 			g_ptr_array_add(files, g_strdup("firmware.metainfo.xml"));
 		} else {
 			g_propagate_error(error, g_steal_pointer(&error_local));
+			fwupd_error_convert(error);
 			return FALSE;
 		}
 	} else {
@@ -770,6 +796,7 @@ fu_cabinet_sign_enumerate_firmware(FuCabinet *self, GPtrArray *files, GError **e
 			g_ptr_array_add(files, g_strdup("firmware.bin"));
 		} else {
 			g_propagate_error(error, g_steal_pointer(&error_local));
+			fwupd_error_convert(error);
 			return FALSE;
 		}
 	} else {
@@ -810,7 +837,6 @@ fu_cabinet_sign(FuCabinet *self,
 	g_autoptr(GOutputStream) ostr = NULL;
 	g_autoptr(GPtrArray) filenames = g_ptr_array_new_with_free_func(g_free);
 	g_autoptr(JcatContext) jcat_context = jcat_context_new();
-	g_autoptr(JcatEngine) jcat_engine = NULL;
 	g_autoptr(JcatFile) jcat_file = jcat_file_new();
 
 	g_return_val_if_fail(FU_IS_CABINET(self), FALSE);
@@ -835,14 +861,11 @@ fu_cabinet_sign(FuCabinet *self,
 		return FALSE;
 
 	/* sign all the files */
-	jcat_engine = jcat_context_get_engine(jcat_context, JCAT_BLOB_KIND_PKCS7, error);
-	if (jcat_engine == NULL)
-		return FALSE;
 	for (guint i = 0; i < filenames->len; i++) {
 		const gchar *filename = g_ptr_array_index(filenames, i);
 		if (!fu_cabinet_sign_filename(self,
 					      filename,
-					      jcat_engine,
+					      jcat_context,
 					      jcat_file,
 					      cert,
 					      privkey,
@@ -862,7 +885,7 @@ fu_cabinet_sign(FuCabinet *self,
 static gboolean
 fu_cabinet_parse(FuFirmware *firmware,
 		 GInputStream *stream,
-		 FwupdInstallFlags flags,
+		 FuFirmwareParseFlags flags,
 		 GError **error)
 {
 	FuCabinet *self = FU_CABINET(firmware);
@@ -878,7 +901,10 @@ fu_cabinet_parse(FuFirmware *firmware,
 	/* decompress and calculate container hashes */
 	if (stream != NULL) {
 		if (!FU_FIRMWARE_CLASS(fu_cabinet_parent_class)
-			 ->parse(firmware, stream, flags, error))
+			 ->parse(firmware,
+				 stream,
+				 flags | FU_FIRMWARE_PARSE_FLAG_CACHE_STREAM,
+				 error))
 			return FALSE;
 		self->container_checksum =
 		    fu_firmware_get_checksum(firmware, G_CHECKSUM_SHA1, error);
@@ -966,20 +992,26 @@ XbNode *
 fu_cabinet_get_component(FuCabinet *self, const gchar *id, GError **error)
 {
 	g_autofree gchar *xpath = NULL;
+	g_autoptr(XbNode) xn = NULL;
 
 	g_return_val_if_fail(FU_IS_CABINET(self), NULL);
 	g_return_val_if_fail(id != NULL, NULL);
 	g_return_val_if_fail(error == NULL || *error == NULL, NULL);
 
 	xpath = g_strdup_printf("components/component/id[text()='%s']/..", id);
-	return xb_silo_query_first(self->silo, xpath, error);
+	xn = xb_silo_query_first(self->silo, xpath, error);
+	if (xn == NULL) {
+		fwupd_error_convert(error);
+		return NULL;
+	}
+	return g_steal_pointer(&xn);
 }
 
 static void
 fu_cabinet_init(FuCabinet *self)
 {
 	fu_cab_firmware_set_only_basename(FU_CAB_FIRMWARE(self), TRUE);
-	fu_firmware_set_size_max(FU_FIRMWARE(self), 1024 * 1024 * 100);
+	fu_firmware_set_size_max(FU_FIRMWARE(self), G_MAXUINT32); /* ~4GB */
 	self->builder = xb_builder_new();
 	self->jcat_file = jcat_file_new();
 	self->jcat_context = jcat_context_new();

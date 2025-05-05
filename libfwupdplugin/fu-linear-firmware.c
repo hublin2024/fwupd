@@ -86,7 +86,7 @@ fu_linear_firmware_build(FuFirmware *firmware, XbNode *n, GError **error)
 static gboolean
 fu_linear_firmware_parse(FuFirmware *firmware,
 			 GInputStream *stream,
-			 FwupdInstallFlags flags,
+			 FuFirmwareParseFlags flags,
 			 GError **error)
 {
 	FuLinearFirmware *self = FU_LINEAR_FIRMWARE(firmware);
@@ -101,12 +101,14 @@ fu_linear_firmware_parse(FuFirmware *firmware,
 		g_autoptr(GInputStream) stream_tmp = NULL;
 
 		stream_tmp = fu_partial_input_stream_new(stream, offset, streamsz - offset, error);
-		if (stream_tmp == NULL)
+		if (stream_tmp == NULL) {
+			g_prefix_error(error, "failed to cut linear image: ");
 			return FALSE;
+		}
 		if (!fu_firmware_parse_stream(img,
 					      stream_tmp,
 					      0x0,
-					      flags | FWUPD_INSTALL_FLAG_NO_SEARCH,
+					      flags | FU_FIRMWARE_PARSE_FLAG_NO_SEARCH,
 					      error)) {
 			g_prefix_error(error, "failed to parse at 0x%x: ", (guint)offset);
 			return FALSE;

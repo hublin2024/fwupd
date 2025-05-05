@@ -3,6 +3,7 @@
 # This file is distributed under the same license as the fwupd package.
 #
 # Translators:
+# Remus-Gabriel Chelu <remusgabriel.chelu@disroot.org>, 2024-2025
 msgid ""
 msgstr ""
 "Project-Id-Version: fwupd\n"
@@ -120,6 +121,16 @@ msgstr "Actualizarea GPU %s"
 #, c-format
 msgid "%s Graphics Tablet Update"
 msgstr "Actualizarea tabletei grafice %s"
+
+#. TRANSLATORS: two miniature speakers attached to your ears
+#, c-format
+msgid "%s Headphones Update"
+msgstr "Actualizarea căștilor auriculare %s"
+
+#. TRANSLATORS: headphones with an integrated microphone
+#, c-format
+msgid "%s Headset Update"
+msgstr "Actualizarea căștilor cu microfon %s"
 
 #. TRANSLATORS: an input device used by gamers, e.g. a joystick
 #, c-format
@@ -319,6 +330,14 @@ msgstr[0] "%u secundă"
 msgstr[1] "%u secunde"
 msgstr[2] "%u de secunde"
 
+#. TRANSLATORS: device tests can be specific to a CPU type
+#, c-format
+msgid "%u test was skipped"
+msgid_plural "%u tests were skipped"
+msgstr[0] "%u test a fost omis"
+msgstr[1] "%u teste au fost omise"
+msgstr[2] "%u de teste au fost omise"
+
 #. TRANSLATORS: first percentage is current value, 2nd percentage is the
 #. * lowest limit the firmware update is allowed for the update to happen
 #, c-format
@@ -419,6 +438,10 @@ msgstr "Permite reinstalarea versiunilor de firmware existente"
 msgid "Allow switching firmware branch"
 msgstr "Permite schimbarea ramurii firmware"
 
+#. TRANSLATORS: error message
+msgid "Already exists, and no --force specified"
+msgstr "Există deja și nu este specificată opțiunea „--force”"
+
 #. TRANSLATORS: is not the main firmware stream
 msgid "Alternate branch"
 msgstr "Ramură alternativă"
@@ -484,8 +507,16 @@ msgid "Authentication is required to downgrade the firmware on this machine"
 msgstr "Autentificarea este necesară pentru a retrograda firmware-ul la o versiune anterioară pe această mașină"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to enable emulation data collection"
+msgstr "Autentificarea este necesară pentru a activa colectarea datelor de emulare"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to fix a host security issue"
 msgstr "Autentificarea este necesară pentru a rezolva o problemă de securitate a gazdei"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to load hardware emulation data"
+msgstr "Autentificarea este necesară pentru încărcarea datelor de emulare hardware"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to modify BIOS settings"
@@ -508,12 +539,20 @@ msgid "Authentication is required to reset daemon configuration to defaults"
 msgstr "Autentificarea este necesară pentru a restabili configurația demonului la valorile implicite"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to save hardware emulation data"
+msgstr "Autentificarea este necesară pentru a salva datele de emulare hardware"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to set the list of approved firmware"
 msgstr "Autentificarea este necesară pentru a defini lista de firmware aprobat"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to sign data using the client certificate"
 msgstr "Autentificarea este necesară pentru semnarea datelor utilizând certificatul clientului"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to stop the firmware update service"
+msgstr "Autentificarea este necesară pentru a opri serviciul de actualizare a firmware-ului"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to switch to the new firmware version"
@@ -542,6 +581,11 @@ msgstr "Autentificarea este necesară pentru a actualiza sumele de control stoca
 #. TRANSLATORS: Boolean value to automatically send reports
 msgid "Automatic Reporting"
 msgstr "Raportare automată"
+
+#. TRANSLATORS: we can auto-uninhibit after a timeout
+#, c-format
+msgid "Automatically uninhibiting in %ums…"
+msgstr "Dezinhibare automată în %ums..."
 
 #. TRANSLATORS: can we JFDI?
 msgid "Automatically upload every time?"
@@ -625,6 +669,10 @@ msgstr "Platforma CET"
 msgid "CPU Microcode must be updated to mitigate against various information-disclosure security issues."
 msgstr "Microcodul CPU trebuie actualizat pentru a atenua diverse probleme de securitate legate de divulgarea informațiilor."
 
+#. TRANSLATORS: we can save all device enumeration events for emulation
+msgid "Can tag for emulation"
+msgstr "Se poate eticheta pentru emulare"
+
 #. TRANSLATORS: this is to abort the interactive prompt
 msgid "Cancel"
 msgstr "Anulează"
@@ -637,10 +685,6 @@ msgstr "Operația a fost anulată"
 #. TRANSLATORS: same or newer update already applied
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "Nu se poate aplica deoarece actualizarea dbx a fost deja aplicată."
-
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "Nu se pot aplica actualizări pe suporturi „live”"
 
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
@@ -688,6 +732,10 @@ msgstr "Comanda nu a fost găsită"
 msgid "Community supported"
 msgstr "Susținut de comunitate"
 
+#. TRANSLATORS: command description
+msgid "Compares two versions for equality"
+msgstr "Compară două versiuni pentru egalitate"
+
 #. TRANSLATORS: title prefix for the BIOS settings dialog
 msgid "Configuration Change Suggested"
 msgstr "Modificare de configurare sugerată"
@@ -707,6 +755,10 @@ msgstr "Tehnologia de îmbunătățire a controlului fluxului"
 #. TRANSLATORS: command description
 msgid "Convert a firmware file"
 msgstr "Convertește un fișier firmware"
+
+#. TRANSLATORS: command description
+msgid "Create an EFI boot entry"
+msgstr "Creează o intrare de pornire EFI"
 
 #. TRANSLATORS: when the update was built
 msgid "Created"
@@ -739,6 +791,10 @@ msgstr "Opțiuni de depanare"
 #. TRANSLATORS: decompressing the firmware file
 msgid "Decompressing…"
 msgstr "Se decomprimă…"
+
+#. TRANSLATORS: command description
+msgid "Delete an EFI boot entry"
+msgstr "Șterge o intrare de pornire EFI"
 
 #. TRANSLATORS: description of BIOS setting
 #. TRANSLATORS: multiline description of device
@@ -993,6 +1049,11 @@ msgstr "Nu scrie în baza de date a istoricului"
 msgid "Do you understand the consequences of changing the firmware branch?"
 msgstr "Înțelegeți consecințele schimbării ramurii firmware?"
 
+#. TRANSLATORS: ask the user if it's okay to convert,
+#. * "it" being the data contained in the EFI boot entry
+msgid "Do you want to convert it now?"
+msgstr "Doriți să o convertiți acum?"
+
 #. TRANSLATORS: offer to disable this nag
 msgid "Do you want to disable this feature for future updates?"
 msgstr "Doriți să dezactivați această caracteristică pentru actualizările viitoare?"
@@ -1044,6 +1105,10 @@ msgstr "Descarcă datele SMBIOS dintr-un fișier"
 msgid "Duration"
 msgstr "Durata"
 
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "EMULATION-FILE [ARCHIVE-FILE]"
+msgstr "FIȘIER-DE-EMULARE [FIȘIER-ARHIVĂ]"
+
 #. TRANSLATORS: longer description
 msgid "Each system should have tests to ensure firmware security."
 msgstr "Fiecare sistem trebuie să dispună de teste pentru a asigura securitatea firmware-ului."
@@ -1062,6 +1127,9 @@ msgstr "Gazdă emulată"
 
 msgid "Enable"
 msgstr "Activare"
+
+msgid "Enable emulation data collection"
+msgstr "Activează colectarea datelor de emulare"
 
 #. TRANSLATORS: a remote here is like a 'repo' or software source
 msgid "Enable new remote?"
@@ -1298,6 +1366,10 @@ msgstr "Regiunea firmware BIOS"
 msgid "Firmware BIOS Region protects device firmware memory from being tampered with."
 msgstr "Regiunea firmware BIOS protejează memoria firmware a dispozitivului împotriva modificărilor."
 
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "Adresa URI de bază pentru firmware"
+
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
 msgstr "Serviciul D-Bus de actualizare a firmware-ului"
@@ -1435,6 +1507,10 @@ msgid "Get all enabled plugins registered with the system"
 msgstr "Obține toate modulele activate înregistrate în sistem"
 
 #. TRANSLATORS: command description
+msgid "Get all known version formats"
+msgstr "Obține toate formatele de versiune cunoscute"
+
+#. TRANSLATORS: command description
 msgid "Get device report metadata"
 msgstr "Obține metadatele raportului dispozitivului"
 
@@ -1498,6 +1574,22 @@ msgstr "Atributele ID-ului de securitate al gazdei (HSI) au fost încărcate cu 
 #. TRANSLATORS: this is a string like 'HSI:2-U'
 msgid "Host Security ID:"
 msgstr "ID-ul de securitate al gazdei:"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX"
+msgstr "INDEX"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX KEY [VALUE]"
+msgstr "INDEX CHEIE [VALOARE]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "INDEX NUMELE ȚINTEI [PUNCT DE MONTARE]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "INDEX1,INDEX2"
+msgstr "INDEX1,INDEX2"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "INHIBIT-ID"
@@ -1721,6 +1813,14 @@ msgstr "Argumente nevalide"
 msgid "Invalid arguments, expected GUID"
 msgstr "Argumente nevalide, se aștepta GUID"
 
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX KEY [VALUE]"
+msgstr "Argumente nevalide, așteptate INDEX CHEIE [VALOARE]"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected INDEX NAME TARGET [MOUNTPOINT]"
+msgstr "Argumente nevalide, așteptate INDEX NUMELE ȚINTEI [PUNCT DE MONTARE]"
+
 #. TRANSLATOR: This is the error message for
 #. * incorrect parameter
 msgid "Invalid arguments, expected an AppStream ID"
@@ -1729,6 +1829,10 @@ msgstr "Argumente nevalide, se aștepta un ID AppStream"
 #. TRANSLATORS: error message
 msgid "Invalid arguments, expected at least ARCHIVE FIRMWARE METAINFO"
 msgstr "Argumente nevalide, așteptate cel puțin ARCHIVE FIRMWARE METAINFO"
+
+#. TRANSLATORS: error message
+msgid "Invalid arguments, expected base-16 integer"
+msgstr "Argumente nevalide, se aștepta un număr întreg în baza-16"
 
 #. TRANSLATORS: version is older
 msgid "Is downgrade"
@@ -2033,6 +2137,11 @@ msgstr "Nu există actualizări disponibile"
 
 msgid "No updates available for remaining devices"
 msgstr "Nu sunt disponibile actualizări pentru celelalte dispozitive"
+
+#. TRANSLATORS: error message
+#, c-format
+msgid "No volume matched %s"
+msgstr "Niciun volum nu se potrivește cu %s"
 
 #. TRANSLATORS: version cannot be installed due to policy
 msgid "Not approved"
@@ -2384,6 +2493,10 @@ msgstr "Nucleul în funcțiune este prea vechi"
 msgid "Runtime Suffix"
 msgstr "Sufixul de timp de execuție"
 
+#. TRANSLATORS: Software Bill of Materials link
+msgid "SBOM"
+msgstr "SBOM"
+
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "SECTION"
 msgstr "SECȚIUNE"
@@ -2399,6 +2512,10 @@ msgstr "PARAMETRU1 VALOARE1 [ PARAMETRU2] [VALOARE2]"
 #. TRANSLATORS: Title: SMAP = Supervisor Mode Access Prevention
 msgid "SMAP"
 msgstr "SMAP"
+
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "SMM locked down"
+msgstr "SMM blocat"
 
 #. TRANSLATORS: Title: SPI refers to the flash chip in the computer
 msgid "SPI BIOS Descriptor"
@@ -2492,6 +2609,18 @@ msgstr "Stabilește un parametru BIOS"
 
 msgid "Set one or more BIOS settings"
 msgstr "Configurează unul sau mai mulți parametri BIOS"
+
+#. TRANSLATORS: command description
+msgid "Set or remove an EFI boot hive entry"
+msgstr "Configurează sau elimină o intrare hive de pornire EFI"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot next"
+msgstr "Stabilește următoarea pornire EFI"
+
+#. TRANSLATORS: command description
+msgid "Set the EFI boot order"
+msgstr "Stabilește ordinea de pornire EFI"
 
 #. TRANSLATORS: command line option
 msgid "Set the download retries for transient errors"
@@ -2595,6 +2724,9 @@ msgstr "Sursa"
 #. TRANSLATORS: command line option
 msgid "Specify the dbx database file"
 msgstr "Specifică fișierul bazei de date dbx"
+
+msgid "Stop the fwupd service"
+msgstr "Oprește serviciul fwupd"
 
 #. TRANSLATORS: The BIOS setting accepts strings
 msgid "String"
@@ -2742,18 +2874,26 @@ msgstr "Schimbă ramura firmware a dispozitivului"
 msgid "Sync firmware versions to the chosen configuration"
 msgstr "Sincronizează versiunile firmware cu configurația aleasă"
 
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "System Management Mode"
+msgstr "Modul de gestionare a sistemului"
+
 #. TRANSLATORS: this CLI tool is now preventing system updates
 msgid "System Update Inhibited"
 msgstr "Actualizarea sistemului inhibată"
 
+#. TRANSLATORS: longer description
+msgid "System management mode is used by the firmware to access resident BIOS code and data."
+msgstr "Modul de gestionare a sistemului este utilizat de firmware pentru a accesa codul și datele BIOS rezidente."
+
 #. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "Energia sistemului este prea scăzută pentru a efectua actualizarea"
+msgid "System power is too low"
+msgstr "Energia sistemului este prea scăzută"
 
 #. TRANSLATORS: as in laptop battery power
 #, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "Energia sistemului este prea scăzută pentru a efectua actualizarea (%u%%, necesită %u%%)"
+msgid "System power is too low (%u%%, requires %u%%)"
+msgstr "Energia sistemului este prea scăzută (%u%%, necesită %u%%)"
 
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"
@@ -2833,6 +2973,14 @@ msgstr "Testat de %s"
 msgid "Tested by trusted vendor"
 msgstr "Testat de un producător de încredere"
 
+#. TRANSLATORS: the boot entry was in a legacy format
+msgid "The EFI boot entry is not in hive format, and shim may not be new enough to read it."
+msgstr "Intrarea de pornire EFI nu este în format „hive”, iar «shim» poate să nu fie suficient de nou pentru a o citi."
+
+#. TRANSLATORS: try to treat the legacy format as a hive
+msgid "The EFI boot entry was not in hive format, falling back"
+msgstr "Intrarea de pornire EFI nu a fost în formatul hive, se trece la opțiunea de rezervă"
+
 #. TRANSLATORS: longer description
 msgid "The Intel Management Engine Key Manifest must be valid so that the device firmware can be trusted by the CPU."
 msgstr "Manifestul de chei al Intel Management Engine trebuie să fie valid, astfel încât CPU-ul să poată avea încredere în firmware-ul dispozitivului."
@@ -2860,6 +3008,18 @@ msgstr "PCR0 TPM este diferit de reconstrucție."
 #. TRANSLATORS: longer description
 msgid "The UEFI Platform Key is used to determine if device software comes from a trusted source."
 msgstr "Cheia platformei UEFI este utilizată pentru a determina dacă software-ul dispozitivului provine dintr-o sursă de încredere."
+
+#. TRANSLATORS: HSI event title
+msgid "The UEFI certificate store is now up to date"
+msgstr "Stocul de certificate UEFI este acum actualizat"
+
+#. TRANSLATORS: longer description
+msgid "The UEFI db contains the list of valid certificates that can be used to authorize what EFI binaries are allowed to run."
+msgstr "Baza de date UEFI (UEFI db) conține lista certificatelor valide care pot fi utilizate pentru a autoriza ce binare EFI pot rula."
+
+#. TRANSLATORS: longer description
+msgid "The UEFI system can set up memory attributes at boot which prevent common exploits from running."
+msgstr "Sistemul UEFI poate configura atribute de memorie la pornire care împiedică executarea unor atacuri de exploatare a breșelor de securitate comune."
 
 #. TRANSLATORS: the user is SOL for support...
 msgid "The daemon has loaded 3rd party code and is no longer supported by the upstream developers!"
@@ -3004,6 +3164,10 @@ msgstr "Este posibil ca partiția ESP UEFI să nu fie configurată corect"
 msgid "UEFI ESP partition not detected or configured"
 msgstr "Partiția ESP UEFI nu este detectată sau configurată"
 
+#. TRANSLATORS: Title: is UEFI early-boot memory protection turned on
+msgid "UEFI Memory Protection"
+msgstr "Protecție a memoriei UEFI"
+
 #. TRANSLATORS: Title: PK is the 'platform key' for the machine
 msgid "UEFI Platform Key"
 msgstr "Cheia platformei UEFI"
@@ -3028,6 +3192,10 @@ msgstr "Variabile ale serviciului de pornire UEFI"
 msgid "UEFI capsule updates not available or enabled in firmware setup"
 msgstr "Actualizările capsulei UEFI nu sunt disponibile sau activate în configurarea firmware-ului"
 
+#. TRANSLATORS: Title: is UEFI db up-to-date
+msgid "UEFI db"
+msgstr "Baza de date UEFI (UEFI db)"
+
 #. TRANSLATORS: program name
 msgid "UEFI dbx Utility"
 msgstr "Instrument dbx UEFI"
@@ -3035,6 +3203,26 @@ msgstr "Instrument dbx UEFI"
 #. TRANSLATORS: system is not booted in UEFI mode
 msgid "UEFI firmware can not be updated in legacy BIOS mode"
 msgstr "Firmware-ul UEFI nu poate fi actualizat în modul BIOS vechi"
+
+#. TRANSLATORS: Title: is UEFI early-boot memory protection turned on
+msgid "UEFI memory protection"
+msgstr "Protecție a memoriei UEFI"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection enabled and locked"
+msgstr "Protecția memoriei UEFI este activată și blocată"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection enabled but not locked"
+msgstr "Protecția memoriei UEFI este activată, dar nu este blocată"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection is now locked"
+msgstr "Protecția memoriei UEFI este acum blocată"
+
+#. TRANSLATORS: HSI event title
+msgid "UEFI memory protection is now unlocked"
+msgstr "Protecția memoriei UEFI este acum deblocată"
 
 #. TRANSLATORS: Title: PK is the 'platform key' for the machine
 msgid "UEFI platform key"
@@ -3232,6 +3420,10 @@ msgstr "Utilizatorul a fost notificat"
 msgid "Username"
 msgstr "Numele utilizatorului"
 
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "VERSION1 VERSION2 [FORMAT]"
+msgstr "VERSIUNEA1 VERSIUNEA2 [FORMAT]"
+
 #. TRANSLATORS: Suffix: the HSI result
 msgid "Valid"
 msgstr "Valid"
@@ -3346,8 +3538,12 @@ msgid "[FILENAME1] [FILENAME2]"
 msgstr "[ NUME_FIȘIER1 ] [ NUME_FIȘIER2 ]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[MOTIVUL]"
+msgid "[FWUPD-VERSION]"
+msgstr "[VERSIUNEA-FWUPD]"
+
+#. TRANSLATORS: command argument: uppercase, spaces->dashes
+msgid "[REASON] [TIMEOUT]"
+msgstr "[MOTIV] [TIMP_AȘTEPTARE]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SECTION] KEY VALUE"

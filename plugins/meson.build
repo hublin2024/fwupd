@@ -19,7 +19,6 @@ plugins = {
   'acpi-facp': false,
   'acpi-ivrs': false,
   'acpi-phat': false,
-  'algoltek-aux': false,
   'algoltek-usb': false,
   'algoltek-usbcr': false,
   'amd-kria': false,
@@ -32,12 +31,12 @@ plugins = {
   'aver-hid': false,
   'bcm57xx': false,
   'bios': false,
+  'bnr-dp': false,
   'ccgx': false,
   'ccgx-dmc': false,
   'cfu': false,
   'ch341a': false,
   'ch347': false,
-  'colorhug': false,
   'corsair': false,
   'cpu': false,
   'cros-ec': false,
@@ -48,6 +47,7 @@ plugins = {
   'ebitdo': false,
   'elantp': false,
   'elanfp': false,
+  'elan-kbd': false,
   'emmc': false,
   'ep963x': false,
   'fastboot': false,
@@ -63,8 +63,12 @@ plugins = {
   'hailuck': false,
   'hpi-cfu': false,
   'huddly-usb': false,
+  'hughski-colorhug': false,
+  'intel-amt': false,
+  'intel-cvs': false,
   'intel-gsc': false,
-  'intel-me': false,
+  'intel-mchi': false,
+  'intel-mkhi': false,
   'intel-usb4': false,
   'iommu': false,
   'jabra': false,
@@ -90,7 +94,6 @@ plugins = {
   'mtd': false,
   'nordic-hid': false,
   'nvme': false,
-  'optionrom': false,
   'parade-lspcon': false,
   'parade-usbhub': false,
   'pci-bcr': false,
@@ -98,6 +101,7 @@ plugins = {
   'pci-psp': false,
   'pixart-rf': false,
   'powerd': false,
+  'qc-firehose': false,
   'qc-s5gen2': false,
   'qsi-dock': false,
   'realtek-mst': false,
@@ -120,8 +124,11 @@ plugins = {
   'thunderbolt': false,
   'ti-tps6598x': false,
   'tpm': false,
+  'uefi-db': false,
   'uefi-dbx': false,
   'uefi-esrt': false,
+  'uefi-kek': false,
+  'uefi-mok': false,
   'uefi-pk': false,
   'uefi-recovery': false,
   'uefi-sbat': false,
@@ -135,10 +142,6 @@ plugins = {
   'wistron-dock': false,
 }
 
-if get_option('plugin_vendor_example')
-  plugins += {'vendor-example': false}
-endif
-
 umockdev_tests = []
 umockdev_ioctls = []
 device_tests = []
@@ -149,12 +152,13 @@ endforeach
 
 if umockdev_integration_tests.allowed()
   envs = environment()
-  envs.set('DAEMON_BUILDDIR', join_paths(meson.project_build_root(), 'src'))
-  envs.set('LIBFWUPD_BUILD_DIR', join_paths(meson.project_build_root(), 'libfwupd'))
-  envs.set('PYTHONPATH', join_paths(meson.project_source_root(), 'data', 'tests'))
-  envs.set('FWUPD_DATADIR_QUIRKS', join_paths(meson.project_build_root()))
-  envs.set('STATE_DIRECTORY', join_paths(meson.project_build_root(), 'state'))
   envs.set('CACHE_DIRECTORY', join_paths(meson.project_build_root(), 'cache'))
+  envs.set('DAEMON_BUILDDIR', join_paths(meson.project_build_root(), 'src'))
+  envs.set('FWUPD_DATADIR_QUIRKS', join_paths(meson.project_build_root()))
+  envs.set('GI_TYPELIB_PATH', join_paths(meson.project_build_root(), 'libfwupd'))
+  envs.set('LD_LIBRARY_PATH', join_paths(meson.project_build_root(), 'libfwupd'))
+  envs.set('PYTHONPATH', join_paths(meson.project_source_root(), 'data', 'tests'))
+  envs.set('STATE_DIRECTORY', join_paths(meson.project_build_root(), 'state'))
 
   foreach suite: umockdev_tests
     r = run_command(unittest_inspector, suite,

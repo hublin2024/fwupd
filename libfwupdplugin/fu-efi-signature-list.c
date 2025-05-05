@@ -16,6 +16,7 @@
 #include "fu-efi-signature-list.h"
 #include "fu-efi-signature-private.h"
 #include "fu-efi-struct.h"
+#include "fu-efi-x509-signature-private.h"
 #include "fu-input-stream.h"
 #include "fu-mem.h"
 
@@ -27,63 +28,67 @@
  * See also: [class@FuFirmware]
  */
 
-struct _FuEfiSignatureList {
-	FuFirmware parent_instance;
-};
-
 G_DEFINE_TYPE(FuEfiSignatureList, fu_efi_signature_list, FU_TYPE_FIRMWARE)
 
 const guint8 FU_EFI_SIGLIST_HEADER_MAGIC[] = {0x26, 0x16, 0xC4, 0xC1, 0x4C};
 
-static gboolean
-fu_efi_signature_list_parse_item(FuEfiSignatureList *self,
-				 FuEfiSignatureKind sig_kind,
-				 GInputStream *stream,
-				 gsize offset,
-				 guint32 size,
-				 GError **error)
+/**
+ * fu_efi_signature_list_get_newest:
+ * @self: a #FuEfiSignatureList
+ *
+ * Gets the deduplicated list of the newest EFI_SIGNATURE_LIST entries.
+ *
+ * Returns: (transfer container) (element-type FuEfiSignature): signatures
+ *
+ * Since: 2.0.8
+ **/
+GPtrArray *
+fu_efi_signature_list_get_newest(FuEfiSignatureList *self)
 {
-	fwupd_guid_t guid;
-	g_autofree gchar *sig_owner = NULL;
-	g_autoptr(FuEfiSignature) sig = NULL;
-	g_autoptr(GBytes) data = NULL;
+	g_autoptr(GHashTable) hash = NULL;
+	g_autoptr(GList) sigs_values = NULL;
+	g_autoptr(GPtrArray) sigs_newest = NULL;
+	g_autoptr(GPtrArray) sigs = NULL;
 
-	/* allocate data buf */
-	if (size <= sizeof(fwupd_guid_t)) {
-		g_set_error(error,
-			    FWUPD_ERROR,
-			    FWUPD_ERROR_INVALID_DATA,
-			    "SignatureSize invalid: 0x%x",
-			    (guint)size);
-		return FALSE;
+	g_return_val_if_fail(FU_IS_EFI_SIGNATURE_LIST(self), NULL);
+
+	/* dedupe the certificates either by the hash or by the subject vendor+name */
+	hash =
+	    g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)g_object_unref);
+	sigs = fu_firmware_get_images(FU_FIRMWARE(self));
+	for (guint i = 0; i < sigs->len; i++) {
+		FuEfiSignature *sig = g_ptr_array_index(sigs, i);
+		FuEfiSignature *sig_tmp;
+		g_autofree gchar *key = NULL;
+
+		if (fu_efi_signature_get_kind(sig) == FU_EFI_SIGNATURE_KIND_X509) {
+			key = fu_efi_x509_signature_build_dedupe_key(FU_EFI_X509_SIGNATURE(sig));
+		} else {
+			key = fu_firmware_get_checksum(FU_FIRMWARE(sig), G_CHECKSUM_SHA256, NULL);
+		}
+		sig_tmp = g_hash_table_lookup(hash, key);
+		if (sig_tmp == NULL) {
+			g_debug("adding %s", key);
+			g_hash_table_insert(hash, g_steal_pointer(&key), g_object_ref(sig));
+		} else if (fu_firmware_get_version_raw(FU_FIRMWARE(sig)) >
+			   fu_firmware_get_version_raw(FU_FIRMWARE(sig_tmp))) {
+			g_debug("replacing %s", key);
+			g_hash_table_insert(hash, g_steal_pointer(&key), g_object_ref(sig));
+		} else {
+			g_debug("ignoring %s", key);
+		}
 	}
 
-	/* read both blocks of data */
-	if (!fu_input_stream_read_safe(stream,
-				       (guint8 *)&guid,
-				       sizeof(guid),
-				       0x0,
-				       offset,
-				       sizeof(guid),
-				       error)) {
-		g_prefix_error(error, "failed to read signature GUID: ");
-		return FALSE;
-	}
-	data = fu_input_stream_read_bytes(stream,
-					  offset + sizeof(fwupd_guid_t),
-					  size - sizeof(fwupd_guid_t),
-					  NULL,
-					  error);
-	if (data == NULL) {
-		g_prefix_error(error, "failed to read signature data: ");
-		return FALSE;
+	/* add the newest of each certificate */
+	sigs_newest = g_ptr_array_new_with_free_func((GDestroyNotify)g_object_unref);
+	sigs_values = g_hash_table_get_values(hash);
+	for (GList *l = sigs_values; l != NULL; l = l->next) {
+		FuEfiSignature *sig = FU_EFI_SIGNATURE(l->data);
+		g_ptr_array_add(sigs_newest, g_object_ref(sig));
 	}
 
-	/* create item */
-	sig_owner = fwupd_guid_to_string(&guid, FWUPD_GUID_FLAG_MIXED_ENDIAN);
-	sig = fu_efi_signature_new(sig_kind, sig_owner);
-	fu_firmware_set_bytes(FU_FIRMWARE(sig), data);
-	return fu_firmware_add_image_full(FU_FIRMWARE(self), FU_FIRMWARE(sig), error);
+	/* success */
+	return g_steal_pointer(&sigs_newest);
 }
 
 static gboolean
@@ -142,39 +147,26 @@ fu_efi_signature_list_parse_list(FuEfiSignatureList *self,
 	/* header is typically unused */
 	offset_tmp = *offset + 0x1c + header_size;
 	for (guint i = 0; i < (list_size - 0x1c) / size; i++) {
-		if (!fu_efi_signature_list_parse_item(self,
-						      sig_kind,
-						      stream,
-						      offset_tmp,
-						      size,
-						      error))
+		g_autoptr(FuEfiSignature) sig = NULL;
+
+		if (sig_kind == FU_EFI_SIGNATURE_KIND_X509) {
+			sig = FU_EFI_SIGNATURE(fu_efi_x509_signature_new());
+		} else {
+			sig = fu_efi_signature_new(sig_kind);
+		}
+		fu_firmware_set_size(FU_FIRMWARE(sig), size);
+		if (!fu_firmware_parse_stream(FU_FIRMWARE(sig),
+					      stream,
+					      offset_tmp,
+					      FU_FIRMWARE_PARSE_FLAG_NONE,
+					      error))
+			return FALSE;
+		if (!fu_firmware_add_image_full(FU_FIRMWARE(self), FU_FIRMWARE(sig), error))
 			return FALSE;
 		offset_tmp += size;
 	}
 	*offset += list_size;
 	return TRUE;
-}
-
-static gchar *
-fu_efi_signature_list_get_version(FuEfiSignatureList *self)
-{
-	guint csum_cnt = 0;
-	const gchar *valid_owners[] = {FU_EFI_SIGNATURE_GUID_MICROSOFT, NULL};
-	g_autoptr(GPtrArray) sigs = fu_firmware_get_images(FU_FIRMWARE(self));
-	for (guint i = 0; i < sigs->len; i++) {
-		FuEfiSignature *sig = g_ptr_array_index(sigs, i);
-		if (fu_efi_signature_get_kind(sig) != FU_EFI_SIGNATURE_KIND_SHA256) {
-			g_debug("ignoring dbx certificate in position %u", i);
-			continue;
-		}
-		if (!g_strv_contains(valid_owners, fu_efi_signature_get_owner(sig))) {
-			g_debug("ignoring non-Microsoft dbx hash: %s",
-				fu_efi_signature_get_owner(sig));
-			continue;
-		}
-		csum_cnt++;
-	}
-	return g_strdup_printf("%u", csum_cnt);
 }
 
 static gboolean
@@ -213,13 +205,12 @@ fu_efi_signature_list_validate(FuFirmware *firmware,
 static gboolean
 fu_efi_signature_list_parse(FuFirmware *firmware,
 			    GInputStream *stream,
-			    FwupdInstallFlags flags,
+			    FuFirmwareParseFlags flags,
 			    GError **error)
 {
 	FuEfiSignatureList *self = FU_EFI_SIGNATURE_LIST(firmware);
 	gsize offset = 0;
 	gsize streamsz = 0;
-	g_autofree gchar *version_str = NULL;
 
 	/* parse each EFI_SIGNATURE_LIST */
 	if (!fu_input_stream_size(stream, &streamsz, error))
@@ -228,11 +219,6 @@ fu_efi_signature_list_parse(FuFirmware *firmware,
 		if (!fu_efi_signature_list_parse_list(self, stream, &offset, error))
 			return FALSE;
 	}
-
-	/* set version */
-	version_str = fu_efi_signature_list_get_version(self);
-	if (version_str != NULL)
-		fu_firmware_set_version(firmware, version_str);
 
 	/* success */
 	return TRUE;
@@ -256,7 +242,7 @@ fu_efi_signature_list_write(FuFirmware *firmware, GError **error)
 	fu_struct_efi_signature_list_set_list_size(st,
 						   FU_STRUCT_EFI_SIGNATURE_LIST_SIZE +
 						       (images->len * (16 + 32)));
-	fu_struct_efi_signature_list_set_size(st, 32); /* SHA256 */
+	fu_struct_efi_signature_list_set_size(st, sizeof(fwupd_guid_t) + 32); /* SHA256 */
 
 	/* SignatureOwner + SignatureData */
 	for (guint i = 0; i < images->len; i++) {
@@ -265,11 +251,12 @@ fu_efi_signature_list_write(FuFirmware *firmware, GError **error)
 		img_blob = fu_firmware_write(img, error);
 		if (img_blob == NULL)
 			return NULL;
-		if (g_bytes_get_size(img_blob) != 16 + 32) {
-			g_set_error_literal(error,
-					    FWUPD_ERROR,
-					    FWUPD_ERROR_INVALID_DATA,
-					    "expected SHA256 hash as signature data");
+		if (g_bytes_get_size(img_blob) != sizeof(fwupd_guid_t) + 32) {
+			g_set_error(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INVALID_DATA,
+				    "expected SHA256 hash as signature data, got 0x%x",
+				    (guint)(g_bytes_get_size(img_blob) - sizeof(fwupd_guid_t)));
 			return NULL;
 		}
 		fu_byte_array_append_bytes(st, img_blob);

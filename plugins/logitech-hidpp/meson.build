@@ -1,4 +1,4 @@
-if enable_udev
+if host_machine.system() == 'linux'
 cargs = ['-DG_LOG_DOMAIN="FuPluginLogitechHidpp"']
 plugins += {meson.current_source_dir().split('/')[-1]: true}
 
@@ -37,6 +37,9 @@ device_tests += files(
   'tests/logitech-rqr24.json',
   'tests/logitech-rqr24-signed.json',
 )
+enumeration_data += files(
+  'tests/logitech-bolt-receiver-setup.json',
+)
 
 if get_option('tests')
   env = environment()
@@ -53,6 +56,9 @@ if get_option('tests')
       plugin_libs,
       plugin_builtin_logitech_hidpp,
     ],
+    install: true,
+    install_rpath: libdir_pkg,
+    install_dir: installed_test_bindir,
     c_args: [
       cargs,
       '-DSRCDIR="' + meson.current_source_dir() + '"',

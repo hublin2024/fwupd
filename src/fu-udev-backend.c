@@ -24,8 +24,8 @@
 struct _FuUdevBackend {
 	FuBackend parent_instance;
 	gint netlink_fd;
-	GHashTable *map_paths;	      /* of str:None */
-	GPtrArray *dpaux_devices;     /* of FuDpauxDevice */
+	GHashTable *map_paths;	  /* of str:None */
+	GPtrArray *dpaux_devices; /* of FuDpauxDevice */
 	guint dpaux_devices_rescan_id;
 	gboolean done_coldplug;
 };
@@ -422,7 +422,7 @@ fu_udev_backend_netlink_parse_blob(FuUdevBackend *self, GBytes *blob, GError **e
 					return TRUE;
 				if (g_strcmp0(
 					fu_udev_device_get_subsystem(FU_UDEV_DEVICE(device_tmp)),
-					"drm") != 0)
+					"drm") == 0)
 					fu_udev_backend_rescan_dpaux_devices(self);
 				g_set_object(&device_donor, FU_UDEV_DEVICE(device_tmp));
 			}
@@ -526,6 +526,15 @@ fu_udev_backend_netlink_setup(FuUdevBackend *self, GError **error)
 	    .nl_groups = FU_UDEV_MONITOR_NETLINK_GROUP_UDEV,
 	};
 	g_autoptr(GSource) source = NULL;
+
+	/* minijail -p prevents access */
+	if (nls.nl_pid <= 2) {
+		g_set_error_literal(error,
+				    FWUPD_ERROR,
+				    FWUPD_ERROR_INTERNAL,
+				    "failed to get PID, perhaps sandboxed?");
+		return FALSE;
+	}
 
 	self->netlink_fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_KOBJECT_UEVENT);
 	if (self->netlink_fd < 0) {

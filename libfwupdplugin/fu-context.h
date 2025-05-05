@@ -129,6 +129,23 @@ typedef enum {
 	 **/
 	FU_CONTEXT_FLAG_INHIBIT_VOLUME_MOUNT = 1u << 3,
 	/**
+	 * FU_CONTEXT_FLAG_FDE_BITLOCKER:
+	 *
+	 * Bitlocker style full disk encryption is in use
+	 *
+	 * Since: 2.0.5
+	 **/
+	FU_CONTEXT_FLAG_FDE_BITLOCKER = 1u << 4,
+	/**
+	 * FU_CONTEXT_FLAG_FDE_SNAPD:
+	 *
+	 * Snapd style full disk encryption is in use
+	 *
+	 * Since: 2.0.5
+	 **/
+	FU_CONTEXT_FLAG_FDE_SNAPD = 1u << 5,
+
+	/**
 	 * FU_CONTEXT_FLAG_LOADED_UNKNOWN:
 	 *
 	 * Unknown flag value.
@@ -143,16 +160,23 @@ fu_context_add_flag(FuContext *context, FuContextFlags flag) G_GNUC_NON_NULL(1);
 void
 fu_context_remove_flag(FuContext *context, FuContextFlags flag) G_GNUC_NON_NULL(1);
 gboolean
-fu_context_has_flag(FuContext *context, FuContextFlags flag) G_GNUC_NON_NULL(1);
+fu_context_has_flag(FuContext *context, FuContextFlags flag) G_GNUC_WARN_UNUSED_RESULT
+    G_GNUC_NON_NULL(1);
 
 const gchar *
-fu_context_get_smbios_string(FuContext *self, guint8 structure_type, guint8 offset, GError **error)
-    G_GNUC_NON_NULL(1);
+fu_context_get_smbios_string(FuContext *self,
+			     guint8 type,
+			     guint8 length,
+			     guint8 offset,
+			     GError **error) G_GNUC_NON_NULL(1);
 guint
-fu_context_get_smbios_integer(FuContext *self, guint8 type, guint8 offset, GError **error)
-    G_GNUC_NON_NULL(1);
+fu_context_get_smbios_integer(FuContext *self,
+			      guint8 type,
+			      guint8 length,
+			      guint8 offset,
+			      GError **error) G_GNUC_NON_NULL(1);
 GPtrArray *
-fu_context_get_smbios_data(FuContext *self, guint8 structure_type, GError **error)
+fu_context_get_smbios_data(FuContext *self, guint8 type, guint8 length, GError **error)
     G_GNUC_NON_NULL(1);
 gboolean
 fu_context_has_hwid_guid(FuContext *self, const gchar *guid) G_GNUC_NON_NULL(1);

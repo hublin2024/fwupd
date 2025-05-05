@@ -4,7 +4,7 @@
 #
 # Translators:
 # Jiri Grönroos <jiri.gronroos@iki.fi>, 2017-2018,2020-2022
-# Kimmo Kujansuu <mrkujansuu@gmail.com>, 2019-2022,2024
+# Kimmo Kujansuu <mrkujansuu@gmail.com>, 2019-2022,2024-2025
 # Ricky Tigg, 2024
 # Timo Jyrinki <timo.jyrinki@gmail.com>, 2021
 # Ville-Pekka Vainio <vpvainio@iki.fi>, 2021,2023
@@ -124,6 +124,16 @@ msgstr "Näytönohjaimen %s päivitys"
 #, c-format
 msgid "%s Graphics Tablet Update"
 msgstr "Piirtopöydän %s päivitys"
+
+#. TRANSLATORS: two miniature speakers attached to your ears
+#, c-format
+msgid "%s Headphones Update"
+msgstr "%s kuulokkeiden päivitys"
+
+#. TRANSLATORS: headphones with an integrated microphone
+#, c-format
+msgid "%s Headset Update"
+msgstr "%s kuulokemikrofoni päivitys"
 
 #. TRANSLATORS: an input device used by gamers, e.g. a joystick
 #, c-format
@@ -481,8 +491,16 @@ msgid "Authentication is required to downgrade the firmware on this machine"
 msgstr "Tämän järjestelmän laiteohjelmiston version alentaminen vaatii tunnistautumisen"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to enable emulation data collection"
+msgstr "Todennus vaaditaan laitteiston emulointitietojen keräämiseksi"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to fix a host security issue"
 msgstr "Host tietoturvaongelman korjaaminen edellyttää todennusta"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to load hardware emulation data"
+msgstr "Todennus vaaditaan laitteiston emulointitietojen lataamiseen"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to modify BIOS settings"
@@ -505,12 +523,20 @@ msgid "Authentication is required to reset daemon configuration to defaults"
 msgstr "Todennus vaaditaan taustaprosessin palauttamiseksi oletuksiin"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to save hardware emulation data"
+msgstr "Todennus vaaditaan laitteiston emulointitietojen tallentamiseen"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to set the list of approved firmware"
 msgstr "Hyväksyttyjen laiteohjelmistojen luettelon tallentaminen vaatii tunnistautumisen"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to sign data using the client certificate"
 msgstr "Tietojen allekirjoittaminen asiakaan sertifikaatin avulla vaatii tunnistautumisen"
+
+#. TRANSLATORS: this is the PolicyKit modal dialog
+msgid "Authentication is required to stop the firmware update service"
+msgstr "Todennus vaaditaan päivityspalvelun pysäyttämiseksi"
 
 #. TRANSLATORS: this is the PolicyKit modal dialog
 msgid "Authentication is required to switch to the new firmware version"
@@ -622,6 +648,10 @@ msgstr "CET Platform"
 msgid "CPU Microcode must be updated to mitigate against various information-disclosure security issues."
 msgstr "CPU-mikrokoodi on päivitettävä erilaisten tietojen paljastamisen turvaongelmien lieventämiseksi."
 
+#. TRANSLATORS: we can save all device enumeration events for emulation
+msgid "Can tag for emulation"
+msgstr "Voidaan merkitä emulointiin"
+
 #. TRANSLATORS: this is to abort the interactive prompt
 msgid "Cancel"
 msgstr "Peru"
@@ -634,10 +664,6 @@ msgstr "Peruttu"
 #. TRANSLATORS: same or newer update already applied
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "Ei voida asentaa, koska dbx-päivitys on jo asennettu."
-
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "Päivityksiä ei voi asentaa live-medialla"
 
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
@@ -1060,6 +1086,9 @@ msgstr "Emuloitu kone"
 msgid "Enable"
 msgstr "Ota käyttöön"
 
+msgid "Enable emulation data collection"
+msgstr "Käytä emulointitietojen keräämistä"
+
 #. TRANSLATORS: a remote here is like a 'repo' or software source
 msgid "Enable new remote?"
 msgstr "Otetaanko uusi lähde käyttöön?"
@@ -1294,6 +1323,10 @@ msgstr "Laiteohjelmiston BIOS-alue"
 #. TRANSLATORS: longer description
 msgid "Firmware BIOS Region protects device firmware memory from being tampered with."
 msgstr "Laiteohjelmiston BIOS-alue estää laiteohjelmiston muistin peukaloimisen."
+
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "Firmware pohja URI"
 
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
@@ -1591,7 +1624,7 @@ msgid "Install signed device firmware"
 msgstr "Asenna allekirjoitettu laiteohjelmisto"
 
 msgid "Install signed system firmware"
-msgstr "Asenna allekirjoitettu järjestelmän laiteohjelmisto"
+msgstr "Asenna allekirjoitettu firmware"
 
 msgid "Install unsigned device firmware"
 msgstr "Asenna allekirjoittamaton laiteohjelmisto"
@@ -2390,6 +2423,10 @@ msgstr "ASETUS1 ARVO1 [ASETUS2] [ARVO2]"
 msgid "SMAP"
 msgstr "SMAP"
 
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "SMM locked down"
+msgstr "SMM lukittu"
+
 #. TRANSLATORS: Title: SPI refers to the flash chip in the computer
 msgid "SPI BIOS Descriptor"
 msgstr "SPI-BIOS-tunnus"
@@ -2586,6 +2623,9 @@ msgstr "Lähde"
 msgid "Specify the dbx database file"
 msgstr "Määritä dbx-tietokantatiedosto"
 
+msgid "Stop the fwupd service"
+msgstr "Pysäytä fwupd-palvelu"
+
 #. TRANSLATORS: The BIOS setting accepts strings
 msgid "String"
 msgstr "Merkkijono"
@@ -2731,18 +2771,26 @@ msgstr "Vaihda laitteen laiteohjelmiston haaraa"
 msgid "Sync firmware versions to the chosen configuration"
 msgstr "Synkronoi laiteohjelmistoversiot valittuun kokoonpanoon"
 
+#. TRANSLATORS: Title: Whether firmware is locked down
+msgid "System Management Mode"
+msgstr "System Management Mode"
+
 #. TRANSLATORS: this CLI tool is now preventing system updates
 msgid "System Update Inhibited"
 msgstr "Järjestelmäpäivitys on estetty"
 
+#. TRANSLATORS: longer description
+msgid "System management mode is used by the firmware to access resident BIOS code and data."
+msgstr "Firmware laiteohjelmisto käyttää järjestelmän hallintatilaa BIOS:in koodin ja tietojen käyttämiseen."
+
 #. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "Järjestelmän akun varaus ei riitä päivityksen toteuttamiseen"
+msgid "System power is too low"
+msgstr "Laitteen virta on liian alhainen"
 
 #. TRANSLATORS: as in laptop battery power
 #, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "Järjestelmän akussa on liian vähän virtaa päivityksen suorittamiseen (%u%%, tarvitaan %u%%)"
+msgid "System power is too low (%u%%, requires %u%%)"
+msgstr "Laitteen virta on alhainen (%u%%, vaatii %u%%)"
 
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"
@@ -3331,10 +3379,6 @@ msgstr "[TIEDOSTO TIEDOSTON_ALLEKIRJOITUS LÄHDETUNNUS]"
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[FILENAME1] [FILENAME2]"
 msgstr "[TIEDOSTONIMI1] [TIEDOSTONIMI2]"
-
-#. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[SYY]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SETTING1] [SETTING2] [--no-authenticate]"

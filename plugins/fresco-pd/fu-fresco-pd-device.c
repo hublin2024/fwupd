@@ -190,7 +190,7 @@ static FuFirmware *
 fu_fresco_pd_device_prepare_firmware(FuDevice *device,
 				     GInputStream *stream,
 				     FuProgress *progress,
-				     FwupdInstallFlags flags,
+				     FuFirmwareParseFlags flags,
 				     GError **error)
 {
 	FuFrescoPdDevice *self = FU_FRESCO_PD_DEVICE(device);
@@ -406,6 +406,7 @@ fu_fresco_pd_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_GUESSED);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 100, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");
@@ -418,7 +419,6 @@ fu_fresco_pd_device_init(FuFrescoPdDevice *self)
 	fu_device_add_icon(FU_DEVICE(self), "usb-hub");
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UPDATABLE);
 	fu_device_add_flag(FU_DEVICE(self), FWUPD_DEVICE_FLAG_UNSIGNED_PAYLOAD);
-	fu_device_add_private_flag(FU_DEVICE(self), FU_DEVICE_PRIVATE_FLAG_ONLY_WAIT_FOR_REPLUG);
 	fu_device_add_protocol(FU_DEVICE(self), "com.frescologic.pd");
 	fu_device_set_version_format(FU_DEVICE(self), FWUPD_VERSION_FORMAT_QUAD);
 	fu_device_set_install_duration(FU_DEVICE(self), 15);

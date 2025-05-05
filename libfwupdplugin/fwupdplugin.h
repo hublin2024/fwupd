@@ -55,7 +55,10 @@
 #include <libfwupdplugin/fu-efi-section.h>
 #include <libfwupdplugin/fu-efi-signature-list.h>
 #include <libfwupdplugin/fu-efi-signature.h>
+#include <libfwupdplugin/fu-efi-variable-authentication2.h>
 #include <libfwupdplugin/fu-efi-volume.h>
+#include <libfwupdplugin/fu-efi-x509-device.h>
+#include <libfwupdplugin/fu-efi-x509-signature.h>
 #include <libfwupdplugin/fu-efivars.h>
 #include <libfwupdplugin/fu-elf-firmware.h>
 #include <libfwupdplugin/fu-endian.h>
@@ -65,6 +68,7 @@
 #include <libfwupdplugin/fu-firmware.h>
 #include <libfwupdplugin/fu-fit-firmware.h>
 #include <libfwupdplugin/fu-fmap-firmware.h>
+#include <libfwupdplugin/fu-heci-device.h>
 #include <libfwupdplugin/fu-hid-descriptor.h>
 #include <libfwupdplugin/fu-hid-device.h>
 #include <libfwupdplugin/fu-hid-report-item.h>
@@ -83,17 +87,20 @@
 #include <libfwupdplugin/fu-intel-thunderbolt-nvm.h>
 #include <libfwupdplugin/fu-io-channel.h>
 #include <libfwupdplugin/fu-ioctl.h>
+#include <libfwupdplugin/fu-kernel-search-path.h>
 #include <libfwupdplugin/fu-kernel.h>
 #include <libfwupdplugin/fu-linear-firmware.h>
 #include <libfwupdplugin/fu-mei-device.h>
 #include <libfwupdplugin/fu-mem.h>
 #include <libfwupdplugin/fu-msgpack-item.h>
 #include <libfwupdplugin/fu-msgpack.h>
+#include <libfwupdplugin/fu-oprom-device.h>
 #include <libfwupdplugin/fu-oprom-firmware.h>
 #include <libfwupdplugin/fu-partial-input-stream.h>
 #include <libfwupdplugin/fu-path.h>
 #include <libfwupdplugin/fu-pci-device.h>
 #include <libfwupdplugin/fu-pefile-firmware.h>
+#include <libfwupdplugin/fu-pkcs7.h>
 #include <libfwupdplugin/fu-plugin-vfuncs.h>
 #include <libfwupdplugin/fu-plugin.h>
 #include <libfwupdplugin/fu-progress.h>
@@ -108,7 +115,9 @@
 #include <libfwupdplugin/fu-udev-device.h>
 #include <libfwupdplugin/fu-usb-bos-descriptor.h>
 #include <libfwupdplugin/fu-v4l-device.h>
+#include <libfwupdplugin/fu-x509-certificate.h>
 // #include <libfwupdplugin/fu-usb-common.h>
+#include <libfwupdplugin/fu-uefi-device.h>
 #include <libfwupdplugin/fu-usb-device.h>
 #include <libfwupdplugin/fu-usb-endpoint.h>
 #include <libfwupdplugin/fu-usb-interface.h>

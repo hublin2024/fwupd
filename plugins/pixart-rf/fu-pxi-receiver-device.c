@@ -30,7 +30,7 @@ static FuFirmware *
 fu_pxi_receiver_device_prepare_firmware(FuDevice *device,
 					GInputStream *stream,
 					FuProgress *progress,
-					FwupdInstallFlags flags,
+					FuFirmwareParseFlags flags,
 					GError **error)
 {
 	g_autoptr(FuFirmware) firmware = fu_pxi_firmware_new();
@@ -466,10 +466,8 @@ fu_pxi_receiver_device_reset(FuDevice *device, GError **error)
 
 	/* ota mcu reset command */
 	fu_byte_array_append_uint8(ota_cmd, 0x1); /* ota mcu reset command */
-	fu_byte_array_append_uint8(
-	    ota_cmd,
-	    FU_PXI_DEVICE_CMD_FW_MCU_RESET);		/* ota mcu reset command op code */
-	fu_byte_array_append_uint8(ota_cmd, OTA_RESET); /* ota mcu reset command reason */
+	fu_byte_array_append_uint8(ota_cmd, FU_PXI_DEVICE_CMD_FW_MCU_RESET); /* op code */
+	fu_byte_array_append_uint8(ota_cmd, FU_PXI_OTA_DISCONNECT_REASON_RESET);
 
 	self->sn++;
 	/* get pixart wireless module ota command */
@@ -855,6 +853,7 @@ static void
 fu_pxi_receiver_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 98, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "attach");

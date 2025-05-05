@@ -324,7 +324,8 @@ fu_ebitdo_device_setup(FuDevice *device, GError **error)
 					      error)) {
 			return FALSE;
 		}
-		fu_device_set_version_raw(FU_DEVICE(self), GUINT32_FROM_LE(version_tmp));
+		fu_device_set_version_raw(FU_DEVICE(self),
+					  GUINT32_FROM_LE(version_tmp)); /* nocheck:blocked */
 		return TRUE;
 	}
 
@@ -341,7 +342,7 @@ fu_ebitdo_device_setup(FuDevice *device, GError **error)
 	if (!fu_ebitdo_device_receive(self, (guint8 *)&version_tmp, sizeof(version_tmp), error)) {
 		return FALSE;
 	}
-	fu_device_set_version_raw(device, GUINT32_FROM_LE(version_tmp));
+	fu_device_set_version_raw(device, GUINT32_FROM_LE(version_tmp)); /* nocheck:blocked */
 
 	/* get verification ID */
 	if (!fu_ebitdo_device_send(self,
@@ -357,7 +358,7 @@ fu_ebitdo_device_setup(FuDevice *device, GError **error)
 		return FALSE;
 	}
 	for (guint i = 0; i < 9; i++)
-		self->serial[i] = GUINT32_FROM_LE(serial_tmp[i]);
+		self->serial[i] = GUINT32_FROM_LE(serial_tmp[i]); /* nocheck:blocked */
 
 	/* success */
 	return TRUE;
@@ -640,8 +641,12 @@ fu_ebitdo_device_probe(FuDevice *device, GError **error)
 
 	/* only the bootloader can do the update */
 	if (!fu_device_has_flag(device, FWUPD_DEVICE_FLAG_IS_BOOTLOADER)) {
-		fu_device_add_counterpart_guid(device, "USB\\VID_0483&PID_5750");
-		fu_device_add_counterpart_guid(device, "USB\\VID_2DC8&PID_5750");
+		fu_device_add_instance_id_full(device,
+					       "USB\\VID_0483&PID_5750",
+					       FU_DEVICE_INSTANCE_FLAG_COUNTERPART);
+		fu_device_add_instance_id_full(device,
+					       "USB\\VID_2DC8&PID_5750",
+					       FU_DEVICE_INSTANCE_FLAG_COUNTERPART);
 	}
 
 	/* success */
@@ -653,6 +658,7 @@ fu_ebitdo_device_set_progress(FuDevice *self, FuProgress *progress)
 {
 	fu_progress_set_id(progress, G_STRLOC);
 	fu_progress_add_flag(progress, FU_PROGRESS_FLAG_NO_PROFILE);
+	fu_progress_add_step(progress, FWUPD_STATUS_DECOMPRESSING, 0, "prepare-fw");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 0, "detach");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_WRITE, 97, "write");
 	fu_progress_add_step(progress, FWUPD_STATUS_DEVICE_RESTART, 2, "attach");

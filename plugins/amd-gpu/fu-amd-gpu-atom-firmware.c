@@ -255,7 +255,7 @@ fu_amd_gpu_atom_firmware_parse_config_filename(FuAmdGpuAtomFirmware *self,
 	config_filename =
 	    fu_memstrsafe(buf,
 			  bufsz,
-			      fu_struct_atom_rom21_header_get_config_filename_offset(atom_header),
+			  fu_struct_atom_rom21_header_get_config_filename_offset(atom_header),
 			  STRLEN_LONG - 1,
 			  error);
 	if (config_filename == NULL)
@@ -271,7 +271,7 @@ fu_amd_gpu_atom_firmware_parse_config_filename(FuAmdGpuAtomFirmware *self,
 static gboolean
 fu_amd_gpu_atom_firmware_parse(FuFirmware *firmware,
 			       GInputStream *stream,
-			       FwupdInstallFlags flags,
+			       FuFirmwareParseFlags flags,
 			       GError **error)
 {
 	FuAmdGpuAtomFirmware *self = FU_AMD_GPU_ATOM_FIRMWARE(firmware);

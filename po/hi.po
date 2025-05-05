@@ -617,10 +617,6 @@ msgstr "रद्द"
 msgid "Cannot apply as dbx update has already been applied."
 msgstr "लागू नहीं किया जा सकता क्योंकि dbx अद्यतन पहले ही लागू किया जा चुका है।"
 
-#. TRANSLATORS: the user is using a LiveCD or LiveUSB install disk
-msgid "Cannot apply updates on live media"
-msgstr "लाइव मीडिया पर अद्यतन लागू नहीं कर सकते"
-
 #. TRANSLATORS: this is when the daemon state changes
 msgid "Changed"
 msgstr "बदल गया"
@@ -1240,6 +1236,10 @@ msgstr "फर्मवेयर BIOS क्षेत्र"
 #. TRANSLATORS: longer description
 msgid "Firmware BIOS Region protects device firmware memory from being tampered with."
 msgstr "फर्मवेयर BIOS क्षेत्र उपकरण फर्मवेयर मेमोरी को छेड़छाड़ से बचाता है।"
+
+#. TRANSLATORS: remote URI
+msgid "Firmware Base URI"
+msgstr "फर्मवेयर बेस  URI"
 
 #. TRANSLATORS: program summary
 msgid "Firmware Update D-Bus Service"
@@ -2606,15 +2606,6 @@ msgstr "फर्मवेयर संस्करणों को चुने
 msgid "System Update Inhibited"
 msgstr "सिस्टम अद्यतन बाधित"
 
-#. TRANSLATORS: as in laptop battery power
-msgid "System power is too low to perform the update"
-msgstr "अद्यतन करने के लिए सिस्टम ऊर्जा बहुत कम है"
-
-#. TRANSLATORS: as in laptop battery power
-#, c-format
-msgid "System power is too low to perform the update (%u%%, requires %u%%)"
-msgstr "अद्यतन करने के लिए सिस्टम ऊर्जा बहुत कम है (%u%%, %u%% की आवश्यकता है)"
-
 #. TRANSLATORS: Must be plugged into an outlet
 msgid "System requires external power source"
 msgstr "सिस्टम को बाहरी ऊर्जा स्रोत की आवश्यकता है"
@@ -3182,10 +3173,6 @@ msgstr "[फाइल FILE_SIG रिमोट-ID]"
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[FILENAME1] [FILENAME2]"
 msgstr "[फाइलनाम1] [फाइलनाम2]"
-
-#. TRANSLATORS: command argument: uppercase, spaces->dashes
-msgid "[REASON]"
-msgstr "[कारण]"
 
 #. TRANSLATORS: command argument: uppercase, spaces->dashes
 msgid "[SETTING1] [SETTING2] [--no-authenticate]"
